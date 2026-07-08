@@ -27,6 +27,16 @@ const SEED_PROJECTS = [
 
 const SEED_EXPENSES = [];
 
+const SEED_INCOMES = [
+    { id: 'INC-001', amount: 500000, customer: 'Dr. Haridasan Nair', bankAccount: 'HDFC Current Account', date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), description: 'Advance Payment for Villa Project - Palakkad', attachments: [] },
+    { id: 'INC-002', amount: 200000, customer: 'Smt. Valsala Devi', bankAccount: 'Hafeez Personal Account', date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), description: 'Advance Payment for House Project - Pattambi', attachments: [] }
+];
+
+const SEED_TRANSFERS = [
+    { id: 'TRF-001', fromAccount: 'HDFC Current Account', toAccount: 'Hafeez Personal Account', amount: 150000, date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), description: 'Internal Transfer of Funds', attachments: [] },
+    { id: 'TRF-002', fromAccount: 'Hafeez Personal Account', toAccount: 'Cash', amount: 20000, date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), description: 'Cash withdrawal for office petty expenses', attachments: [] }
+];
+
 const SEED_NOTIFICATIONS = [];
 
 const CATEGORY_ICONS = {
@@ -60,11 +70,13 @@ class Database {
     }
 
     init() {
-        // Migration reset block v4 to clean all finance data including transactions
-        if (!localStorage.getItem('zoosh_db_clean_reset_v4')) {
+        // Migration reset block v5 to clean all finance data including transactions
+        if (!localStorage.getItem('zoosh_db_clean_reset_v5')) {
             localStorage.setItem('zoosh_expenses', JSON.stringify([]));
             localStorage.setItem('zoosh_notifications', JSON.stringify([]));
             localStorage.setItem('zoosh_transactions', JSON.stringify([]));
+            localStorage.setItem('zoosh_incomes', JSON.stringify(SEED_INCOMES));
+            localStorage.setItem('zoosh_transfers', JSON.stringify(SEED_TRANSFERS));
             
             // Reset projects spent to 0
             const projects = JSON.parse(localStorage.getItem('zoosh_projects') || JSON.stringify(SEED_PROJECTS));
@@ -79,7 +91,7 @@ class Database {
             });
             localStorage.setItem('zoosh_vendors', JSON.stringify(vendors));
             
-            localStorage.setItem('zoosh_db_clean_reset_v4', 'true');
+            localStorage.setItem('zoosh_db_clean_reset_v5', 'true');
         }
 
         if (!localStorage.getItem('zoosh_users')) {
@@ -94,14 +106,17 @@ class Database {
         if (!localStorage.getItem('zoosh_expenses')) {
             localStorage.setItem('zoosh_expenses', JSON.stringify(SEED_EXPENSES));
         }
+        if (!localStorage.getItem('zoosh_incomes')) {
+            localStorage.setItem('zoosh_incomes', JSON.stringify(SEED_INCOMES));
+        }
+        if (!localStorage.getItem('zoosh_transfers')) {
+            localStorage.setItem('zoosh_transfers', JSON.stringify(SEED_TRANSFERS));
+        }
         if (!localStorage.getItem('zoosh_notifications')) {
             localStorage.setItem('zoosh_notifications', JSON.stringify(SEED_NOTIFICATIONS));
         }
         if (!localStorage.getItem('zoosh_custom_categories')) {
             localStorage.setItem('zoosh_custom_categories', JSON.stringify([]));
-        }
-        if (!localStorage.getItem('zoosh_transactions')) {
-            localStorage.setItem('zoosh_transactions', JSON.stringify([]));
         }
     }
 
@@ -124,8 +139,66 @@ class Database {
     getVendors() { return this.getData('zoosh_vendors'); }
     getProjects() { return this.getData('zoosh_projects'); }
     getExpenses() { return this.getData('zoosh_expenses'); }
+    getIncomes() {
+        if (!localStorage.getItem('zoosh_incomes')) {
+            localStorage.setItem('zoosh_incomes', JSON.stringify([]));
+        }
+        return this.getData('zoosh_incomes') || [];
+    }
+    getTransfers() {
+        if (!localStorage.getItem('zoosh_transfers')) {
+            localStorage.setItem('zoosh_transfers', JSON.stringify([]));
+        }
+        return this.getData('zoosh_transfers') || [];
+    }
     getNotifications() { return this.getData('zoosh_notifications'); }
     getCustomCategories() { return this.getData('zoosh_custom_categories'); }
+
+    saveIncome(income) {
+        const incomes = this.getIncomes();
+        const index = incomes.findIndex(i => i.id === income.id);
+        if (index > -1) {
+            incomes[index] = income;
+        } else {
+            incomes.unshift(income);
+        }
+        this.setData('zoosh_incomes', incomes);
+        if (typeof pushToSupabase === 'function') {
+            pushToSupabase('incomes', income);
+        }
+    }
+
+    deleteIncome(id) {
+        let incomes = this.getIncomes();
+        incomes = incomes.filter(i => i.id !== id);
+        this.setData('zoosh_incomes', incomes);
+        if (typeof deleteFromSupabase === 'function') {
+            deleteFromSupabase('incomes', id);
+        }
+    }
+
+    saveTransfer(transfer) {
+        const transfers = this.getTransfers();
+        const index = transfers.findIndex(t => t.id === transfer.id);
+        if (index > -1) {
+            transfers[index] = transfer;
+        } else {
+            transfers.unshift(transfer);
+        }
+        this.setData('zoosh_transfers', transfers);
+        if (typeof pushToSupabase === 'function') {
+            pushToSupabase('transfers', transfer);
+        }
+    }
+
+    deleteTransfer(id) {
+        let transfers = this.getTransfers();
+        transfers = transfers.filter(t => t.id !== id);
+        this.setData('zoosh_transfers', transfers);
+        if (typeof deleteFromSupabase === 'function') {
+            deleteFromSupabase('transfers', id);
+        }
+    }
 
     saveExpense(expense) {
         const expenses = this.getExpenses();
@@ -333,6 +406,10 @@ function switchView(viewId) {
         renderDashboard();
     } else if (viewId === 'expenses') {
         renderExpensesList();
+    } else if (viewId === 'incomes') {
+        renderIncomesList();
+    } else if (viewId === 'transfers') {
+        renderTransfersList();
     } else if (viewId === 'vendors') {
         renderVendorsList();
     } else if (viewId === 'projects') {
@@ -356,22 +433,38 @@ function renderDashboard() {
     const expenses = db.getExpenses();
     const vendors = db.getVendors();
     const projects = db.getProjects();
+    const incomes = db.getIncomes();
+    const transfers = db.getTransfers();
     
-    // Finance Overview Metrics calculated dynamically from transaction registry
-    const txns = db.getTransactions();
+    // ----------------------------------------------------
+    // DYNAMIC BANK ACCOUNT RECALCULATIONS
+    // ----------------------------------------------------
+    // HDFC Current Account
+    const incomesToHdfc = incomes.filter(i => i.bankAccount === 'HDFC Current Account').reduce((sum, i) => sum + Number(i.amount), 0);
+    const transfersToHdfc = transfers.filter(t => t.toAccount === 'HDFC Current Account').reduce((sum, t) => sum + Number(t.amount), 0);
+    const expensesFromHdfc = expenses.filter(e => e.bankAccount === 'HDFC Current Account' && e.status !== 'Rejected' && e.status !== 'Cancelled').reduce((sum, e) => sum + Number(e.amount), 0);
+    const transfersFromHdfc = transfers.filter(t => t.fromAccount === 'HDFC Current Account').reduce((sum, t) => sum + Number(t.amount), 0);
     
-    // Incomes / Deposits
-    const cashIncomes = txns.filter(t => t.type === 'Income' && t.method === 'Cash').reduce((sum, t) => sum + Number(t.amount), 0);
-    const bankIncomes = txns.filter(t => t.type === 'Income' && t.method === 'Bank').reduce((sum, t) => sum + Number(t.amount), 0);
+    const hdfcIncome = incomesToHdfc + transfersToHdfc;
+    const hdfcExpenses = expensesFromHdfc + transfersFromHdfc;
+    const hdfcBalance = hdfcIncome - hdfcExpenses;
+
+    // Hafeez Personal Account
+    const incomesToHafeez = incomes.filter(i => i.bankAccount === 'Hafeez Personal Account').reduce((sum, i) => sum + Number(i.amount), 0);
+    const transfersToHafeez = transfers.filter(t => t.toAccount === 'Hafeez Personal Account').reduce((sum, t) => sum + Number(t.amount), 0);
+    const expensesFromHafeez = expenses.filter(e => e.bankAccount === 'Hafeez Personal Account' && e.status !== 'Rejected' && e.status !== 'Cancelled').reduce((sum, e) => sum + Number(e.amount), 0);
+    const transfersFromHafeez = transfers.filter(t => t.fromAccount === 'Hafeez Personal Account').reduce((sum, t) => sum + Number(t.amount), 0);
     
-    // Paid Expenses
-    const cashExpenses = expenses.filter(e => e.status === 'Paid' && e.paymentMethod === 'Cash').reduce((sum, e) => sum + Number(e.amount), 0);
-    const bankExpenses = expenses.filter(e => e.status === 'Paid' && e.paymentMethod !== 'Cash').reduce((sum, e) => sum + Number(e.amount), 0);
-    
-    const cashAvailable = Math.max(0, cashIncomes - cashExpenses);
-    const bankBalance = Math.max(0, bankIncomes - bankExpenses);
-    
-    // Expense calculation helper
+    const hafeezIncome = incomesToHafeez + transfersToHafeez;
+    const hafeezExpenses = expensesFromHafeez + transfersFromHafeez;
+    const hafeezBalance = hafeezIncome - hafeezExpenses;
+
+    // Overall metrics
+    const overallTotalIncome = incomes.reduce((sum, i) => sum + Number(i.amount), 0);
+    const overallTotalExpenses = expenses.filter(e => e.status !== 'Rejected' && e.status !== 'Cancelled').reduce((sum, e) => sum + Number(e.amount), 0);
+    const netCashFlow = overallTotalIncome - overallTotalExpenses;
+
+    // Expense calculation helper for top cards
     const today = new Date().toISOString().split('T')[0];
     const todayExpenses = expenses
         .filter(e => e.createdAt.startsWith(today) && e.status !== 'Rejected' && e.status !== 'Cancelled')
@@ -393,27 +486,48 @@ function renderDashboard() {
         .filter(e => new Date(e.createdAt) >= startOfMonth && e.status !== 'Rejected' && e.status !== 'Cancelled')
         .reduce((sum, e) => sum + Number(e.amount), 0);
 
-    const pendingPaymentsTotal = expenses
-        .filter(e => e.status === 'Pending' || e.status === 'Approved')
-        .reduce((sum, e) => sum + Number(e.amount), 0);
-
     const supplierOutstanding = vendors.reduce((sum, v) => sum + v.outstandingAmount, 0);
 
     // Update UI Cards
-    document.getElementById('dash-today-expenses').textContent = formatCurrency(todayExpenses);
-    document.getElementById('dash-today-txns').textContent = todayTransactionsCount + ' Payments';
-    document.getElementById('dash-week-expenses').textContent = formatCurrency(weekExpenses);
-    document.getElementById('dash-month-expenses').textContent = formatCurrency(monthExpenses);
-
-    // Finance Dashboard Tab elements
-    const cashEl = document.getElementById('dash-cash-avail');
-    if (cashEl) cashEl.textContent = formatCurrency(cashAvailable);
-    const bankEl = document.getElementById('dash-bank-bal');
-    if (bankEl) bankEl.textContent = formatCurrency(bankBalance);
-    const pendingPayEl = document.getElementById('dash-pending-payments');
-    if (pendingPayEl) pendingPayEl.textContent = formatCurrency(pendingPaymentsTotal);
+    const todayExpEl = document.getElementById('dash-today-expenses');
+    if (todayExpEl) todayExpEl.textContent = formatCurrency(todayExpenses);
+    const todayTxnEl = document.getElementById('dash-today-txns');
+    if (todayTxnEl) todayTxnEl.textContent = todayTransactionsCount + ' Payments';
+    const weekExpEl = document.getElementById('dash-week-expenses');
+    if (weekExpEl) weekExpEl.textContent = formatCurrency(weekExpenses);
+    const monthExpEl = document.getElementById('dash-month-expenses');
+    if (monthExpEl) monthExpEl.textContent = formatCurrency(monthExpenses);
     const outstandEl = document.getElementById('dash-supplier-outstanding');
     if (outstandEl) outstandEl.textContent = formatCurrency(supplierOutstanding);
+
+    // Update bank wallets displays
+    const hdfcBalEl = document.getElementById('dash-hdfc-balance');
+    const hdfcIncEl = document.getElementById('dash-hdfc-income');
+    const hdfcExpEl = document.getElementById('dash-hdfc-expenses');
+    
+    const hafeezBalEl = document.getElementById('dash-hafeez-balance');
+    const hafeezIncEl = document.getElementById('dash-hafeez-income');
+    const hafeezExpEl = document.getElementById('dash-hafeez-expenses');
+    
+    const overallIncEl = document.getElementById('dash-overall-income');
+    const overallExpEl = document.getElementById('dash-overall-expenses');
+    const netCashFlowEl = document.getElementById('dash-net-cash-flow');
+
+    if (hdfcBalEl) hdfcBalEl.textContent = formatCurrency(hdfcBalance);
+    if (hdfcIncEl) hdfcIncEl.textContent = formatCurrency(hdfcIncome);
+    if (hdfcExpEl) hdfcExpEl.textContent = formatCurrency(hdfcExpenses);
+    
+    if (hafeezBalEl) hafeezBalEl.textContent = formatCurrency(hafeezBalance);
+    if (hafeezIncEl) hafeezIncEl.textContent = formatCurrency(hafeezIncome);
+    if (hafeezExpEl) hafeezExpEl.textContent = formatCurrency(hafeezExpenses);
+    
+    if (overallIncEl) overallIncEl.textContent = formatCurrency(overallTotalIncome);
+    if (overallExpEl) overallExpEl.textContent = formatCurrency(overallTotalExpenses);
+    
+    if (netCashFlowEl) {
+        netCashFlowEl.textContent = formatCurrency(netCashFlow);
+        netCashFlowEl.style.color = netCashFlow >= 0 ? 'var(--success)' : 'var(--danger)';
+    }
 
     // Render Quick Category Totals Summary
     const categoryTotals = {};
@@ -459,25 +573,22 @@ function renderDashboard() {
                 
                 recentList.innerHTML += `
                     <div class="expense-row-card" onclick="viewExpenseDetail('${exp.id}')">
-                        <div class="expense-card-left">
+                        <div class="expense-card-left" style="width: 70%;">
                             <div class="expense-cat-icon">
-                                <i data-lucide="${CATEGORY_ICONS[exp.category] || 'package'}"></i>
+                                <i data-lucide="receipt"></i>
                             </div>
-                            <div class="expense-title-details">
+                            <div class="expense-title-details" style="width: calc(100% - 60px);">
                                 <div class="expense-vendor-title">${vendorName}</div>
-                                <div class="expense-meta-info">
-                                    <span>${exp.category}</span>
-                                    <div class="dot-separator"></div>
-                                    <span>${projectName}</span>
-                                    <div class="dot-separator"></div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; white-space: pre-wrap; overflow-wrap: break-word; word-wrap: break-word; word-break: break-all;" class="expense-description-text">${exp.description || 'No description provided'}</div>
+                                <div class="expense-meta-info" style="margin-top: 6px;">
                                     <span>${timeString}</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="expense-card-right">
+                        <div class="expense-card-right" style="width: 30%; text-align: right;">
                             <div>
                                 <div class="expense-amount-display">${formatCurrency(exp.amount)}</div>
-                                <div class="expense-sub-text">${exp.paymentMethod}</div>
+                                <div class="expense-sub-text">${exp.bankAccount || exp.paymentMethod}</div>
                             </div>
                             <span class="badge ${exp.status.toLowerCase()}">${exp.status}</span>
                         </div>
@@ -687,27 +798,24 @@ function renderExpensesList() {
 
             listContainer.innerHTML += `
                 <div class="expense-row-card" onclick="viewExpenseDetail('${exp.id}')">
-                    <div class="expense-card-left">
+                    <div class="expense-card-left" style="width: 70%;">
                         <div class="expense-cat-icon">
-                            <i data-lucide="${CATEGORY_ICONS[exp.category] || 'package'}"></i>
+                            <i data-lucide="receipt"></i>
                         </div>
-                        <div class="expense-title-details">
+                        <div class="expense-title-details" style="width: calc(100% - 60px);">
                             <div class="expense-vendor-title">${vendorName}</div>
-                            <div class="expense-meta-info">
-                                <span>${exp.category}</span>
-                                <div class="dot-separator"></div>
-                                <span>${projectName}</span>
-                                <div class="dot-separator"></div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; white-space: pre-wrap; overflow-wrap: break-word; word-wrap: break-word; word-break: break-all;" class="expense-description-text">${exp.description || 'No description provided'}</div>
+                            <div class="expense-meta-info" style="margin-top: 6px;">
                                 <span>By ${createdByUser}</span>
                                 <div class="dot-separator"></div>
                                 <span>${dateStr}</span>
                             </div>
                         </div>
                     </div>
-                    <div class="expense-card-right">
+                    <div class="expense-card-right" style="width: 30%; text-align: right;">
                         <div>
                             <div class="expense-amount-display">${formatCurrency(exp.amount)}</div>
-                            <div class="expense-sub-text">${exp.paymentMethod}</div>
+                            <div class="expense-sub-text">${exp.bankAccount || exp.paymentMethod}</div>
                         </div>
                         <span class="badge ${exp.status.toLowerCase()}">${exp.status}</span>
                     </div>
@@ -1010,7 +1118,6 @@ function viewExpenseDetail(expenseId) {
     if (!exp) return;
 
     const vendor = db.getVendors().find(v => v.id === exp.vendorId) || { name: 'Unknown', phone: '', gst: '' };
-    const project = db.getProjects().find(p => p.id === exp.projectId) || { name: 'No Project' };
     const creator = db.getUsers().find(u => u.id === exp.createdBy) || { name: 'Staff' };
     const approver = db.getUsers().find(u => u.id === exp.approvedBy) || { name: 'N/A' };
     
@@ -1023,11 +1130,8 @@ function viewExpenseDetail(expenseId) {
     statusBadge.textContent = exp.status;
 
     document.getElementById('det-vendor').textContent = vendor.name;
-    document.getElementById('det-category').textContent = exp.category;
-    document.getElementById('det-project').textContent = project.name;
+    document.getElementById('det-bank-account').textContent = exp.bankAccount || exp.paymentMethod || 'HDFC Current Account';
     document.getElementById('det-description').textContent = exp.description || 'No description provided.';
-    document.getElementById('det-payment-method').textContent = exp.paymentMethod;
-    document.getElementById('det-transaction-id').textContent = exp.transactionNo || 'N/A';
     document.getElementById('det-date').textContent = new Date(exp.createdAt).toLocaleString();
     document.getElementById('det-created-by').textContent = creator.name;
     document.getElementById('det-approved-by').textContent = approver.name;
@@ -1241,11 +1345,8 @@ function duplicateExpenseAction(expId) {
     document.getElementById('exp-id').value = '';
     document.getElementById('exp-amount').value = exp.amount;
     document.getElementById('exp-vendor').value = exp.vendorId;
-    document.getElementById('exp-category').value = exp.category;
-    document.getElementById('exp-project').value = exp.projectId;
-    document.getElementById('exp-payment').value = exp.paymentMethod;
+    document.getElementById('exp-bank-account').value = exp.bankAccount || 'HDFC Current Account';
     document.getElementById('exp-description').value = `${exp.description} (Duplicate)`;
-    document.getElementById('exp-txn-number').value = '';
     document.getElementById('exp-date').value = new Date().toISOString().slice(0, 16);
     
     closeDetailModal();
@@ -1261,11 +1362,8 @@ function editExpenseAction(expId) {
     document.getElementById('exp-id').value = exp.id;
     document.getElementById('exp-amount').value = exp.amount;
     document.getElementById('exp-vendor').value = exp.vendorId;
-    document.getElementById('exp-category').value = exp.category;
-    document.getElementById('exp-project').value = exp.projectId;
-    document.getElementById('exp-payment').value = exp.paymentMethod;
+    document.getElementById('exp-bank-account').value = exp.bankAccount || 'HDFC Current Account';
     document.getElementById('exp-description').value = exp.description;
-    document.getElementById('exp-txn-number').value = exp.transactionNo;
     document.getElementById('exp-date').value = new Date(exp.createdAt).toISOString().slice(0, 16);
     
     closeDetailModal();
@@ -1277,29 +1375,14 @@ function saveExpenseForm(event) {
     
     const amount = Number(document.getElementById('exp-amount').value);
     const vendorId = document.getElementById('exp-vendor').value;
-    const category = document.getElementById('exp-category').value;
-    const projectId = document.getElementById('exp-project').value;
-    const paymentMethod = document.getElementById('exp-payment').value;
-    const description = document.getElementById('exp-description').value;
-    const transactionNo = document.getElementById('exp-txn-number').value;
+    const bankAccount = document.getElementById('exp-bank-account').value;
+    const description = document.getElementById('exp-description').value.trim();
     const dateInput = document.getElementById('exp-date').value;
     const expId = document.getElementById('exp-id').value;
 
-    if (!amount || !vendorId || !category || !paymentMethod) {
+    if (!amount || !vendorId || !bankAccount || !description) {
         alert('Please fill out all required fields.');
         return;
-    }
-
-    // Check project budget threshold alert
-    if (projectId && projectId !== 'prj-none') {
-        const project = db.getProjects().find(p => p.id === projectId);
-        if (project) {
-            const addedTotal = project.spent + amount;
-            if (project.budget > 0 && addedTotal > project.budget * 0.8) {
-                const percent = Math.round((addedTotal / project.budget) * 100);
-                alert(`⚠️ Budget Warning: Saving this expense will push ${project.name} to ${percent}% of its total budget (₹${project.budget.toLocaleString()}).`);
-            }
-        }
     }
 
     const nextId = expId || 'EXP-' + String(db.getExpenses().length + 1).padStart(3, '0');
@@ -1308,13 +1391,14 @@ function saveExpenseForm(event) {
     const expenseObj = {
         id: nextId,
         vendorId,
-        projectId: projectId || 'prj-none',
-        category,
+        projectId: 'prj-none',
+        category: 'Other',
         amount,
         tax: Math.round(amount * 0.18), // 18% default GST calculation
         gst: db.getVendors().find(v => v.id === vendorId)?.gst || '',
-        paymentMethod,
-        transactionNo,
+        bankAccount,
+        paymentMethod: bankAccount,
+        transactionNo: '',
         description,
         createdBy: expId ? (db.getExpenses().find(e => e.id === expId)?.createdBy || currentUser.id) : currentUser.id,
         approvedBy: '',
@@ -1331,7 +1415,7 @@ function saveExpenseForm(event) {
     notifs.unshift({
         id: 'notif-' + Date.now(),
         title: 'New Expense Added',
-        message: `${currentUser.name} added an expense for ₹${amount.toLocaleString()} in ${category}.`,
+        message: `${currentUser.name} added an expense for ₹${amount.toLocaleString()} from ${bankAccount}.`,
         time: 'Just now',
         unread: true,
         roles: ['owner', 'manager']
@@ -1524,88 +1608,63 @@ function toggleVoiceRecording() {
 function exportReport(format) {
     const expenses = db.getExpenses();
     const vendors = db.getVendors();
-    const projects = db.getProjects();
+    const incomes = db.getIncomes();
+    const transfers = db.getTransfers();
     
     let content = '';
     let filename = `zoosh_report_${Date.now()}`;
 
     if (format === 'csv') {
         filename += '.csv';
-        // Headers
-        content = 'Expense ID,Vendor,Category,Project,Amount,GST,Payment Method,Status,Date\n';
+        content = 'Expense ID,Vendor,Bank Account,Amount,GST,Date,Description\n';
         expenses.forEach(e => {
             const vName = vendors.find(v => v.id === e.vendorId)?.name || 'Unknown';
-            const pName = projects.find(p => p.id === e.projectId)?.name || 'No Project';
-            content += `"${e.id}","${vName}","${e.category}","${pName}",${e.amount},${e.tax},"${e.paymentMethod}","${e.status}","${e.createdAt}"\n`;
+            const desc = (e.description || '').replace(/"/g, '""');
+            content += `"${e.id}","${vName}","${e.bankAccount || e.paymentMethod}",${e.amount},${e.tax},"${e.createdAt}","${desc}"\n`;
         });
         downloadBlob(content, filename, 'text/csv');
     } else if (format === 'excel') {
         filename += '.xls';
-        content = '<table><tr><th>Expense ID</th><th>Vendor</th><th>Category</th><th>Project</th><th>Amount</th><th>GST</th><th>Status</th></tr>';
+        content = '<table><tr><th>Expense ID</th><th>Vendor</th><th>Bank Account</th><th>Amount</th><th>GST</th><th>Description</th></tr>';
         expenses.forEach(e => {
             const vName = vendors.find(v => v.id === e.vendorId)?.name || 'Unknown';
-            const pName = projects.find(p => p.id === e.projectId)?.name || 'No Project';
-            content += `<tr><td>${e.id}</td><td>${vName}</td><td>${e.category}</td><td>${pName}</td><td>${e.amount}</td><td>${e.tax}</td><td>${e.status}</td></tr>`;
+            content += `<tr><td>${e.id}</td><td>${vName}</td><td>${e.bankAccount || e.paymentMethod}</td><td>${e.amount}</td><td>${e.tax}</td><td>${e.description || ''}</td></tr>`;
         });
         content += '</table>';
         downloadBlob(content, filename, 'application/vnd.ms-excel');
     } else if (format === 'pdf') {
-        // Calculate dynamic figures
-        const txns = db.getTransactions();
-        const cashIncomes = txns.filter(t => t.type === 'Income' && t.method === 'Cash').reduce((sum, t) => sum + Number(t.amount), 0);
-        const bankIncomes = txns.filter(t => t.type === 'Income' && t.method === 'Bank').reduce((sum, t) => sum + Number(t.amount), 0);
-        const cashExpenses = expenses.filter(e => e.status === 'Paid' && e.paymentMethod === 'Cash').reduce((sum, e) => sum + Number(e.amount), 0);
-        const bankExpenses = expenses.filter(e => e.status === 'Paid' && e.paymentMethod !== 'Cash').reduce((sum, e) => sum + Number(e.amount), 0);
-        const cashAvailable = Math.max(0, cashIncomes - cashExpenses);
-        const bankBalance = Math.max(0, bankIncomes - bankExpenses);
-        const pendingPaymentsTotal = expenses.filter(e => e.status === 'Pending' || e.status === 'Approved').reduce((sum, e) => sum + Number(e.amount), 0);
+        // Calculate dynamic figures for wallets
+        const incomesToHdfc = incomes.filter(i => i.bankAccount === 'HDFC Current Account').reduce((sum, i) => sum + Number(i.amount), 0);
+        const transfersToHdfc = transfers.filter(t => t.toAccount === 'HDFC Current Account').reduce((sum, t) => sum + Number(t.amount), 0);
+        const expensesFromHdfc = expenses.filter(e => e.bankAccount === 'HDFC Current Account' && e.status !== 'Rejected' && e.status !== 'Cancelled').reduce((sum, e) => sum + Number(e.amount), 0);
+        const transfersFromHdfc = transfers.filter(t => t.fromAccount === 'HDFC Current Account').reduce((sum, t) => sum + Number(t.amount), 0);
+        const hdfcBalance = incomesToHdfc + transfersToHdfc - expensesFromHdfc - transfersFromHdfc;
+
+        const incomesToHafeez = incomes.filter(i => i.bankAccount === 'Hafeez Personal Account').reduce((sum, i) => sum + Number(i.amount), 0);
+        const transfersToHafeez = transfers.filter(t => t.toAccount === 'Hafeez Personal Account').reduce((sum, t) => sum + Number(t.amount), 0);
+        const expensesFromHafeez = expenses.filter(e => e.bankAccount === 'Hafeez Personal Account' && e.status !== 'Rejected' && e.status !== 'Cancelled').reduce((sum, e) => sum + Number(e.amount), 0);
+        const transfersFromHafeez = transfers.filter(t => t.fromAccount === 'Hafeez Personal Account').reduce((sum, t) => sum + Number(t.amount), 0);
+        const hafeezBalance = incomesToHafeez + transfersToHafeez - expensesFromHafeez - transfersFromHafeez;
+
         const supplierOutstanding = vendors.reduce((sum, v) => sum + v.outstandingAmount, 0);
         const totalExpensesSum = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
         // Generate Expense Rows HTML
         let expenseRows = '';
         if (expenses.length === 0) {
-            expenseRows = '<tr><td colspan="7" style="text-align:center; color:#9CA3AF;">No expenses recorded yet.</td></tr>';
+            expenseRows = '<tr><td colspan="6" style="text-align:center; color:#9CA3AF;">No expenses recorded yet.</td></tr>';
         } else {
             expenses.forEach(e => {
                 const vName = vendors.find(v => v.id === e.vendorId)?.name || 'Unknown';
-                const pName = projects.find(p => p.id === e.projectId)?.name || 'No Project';
+                const descHtml = e.description ? `<span class="desc-highlight">${e.description}</span>` : '<span style="color:#9CA3AF; font-size:0.75rem; font-style:italic;">No details provided</span>';
                 expenseRows += `
                     <tr>
                         <td><strong>${e.id}</strong></td>
                         <td>${vName}</td>
-                        <td>${e.category}</td>
-                        <td>${pName}</td>
+                        <td>${e.bankAccount || e.paymentMethod}</td>
                         <td><strong>${formatCurrency(e.amount)}</strong></td>
-                        <td>${e.paymentMethod}</td>
                         <td><span class="badge ${e.status.toLowerCase()}">${e.status}</span></td>
-                    </tr>
-                `;
-            });
-        }
-
-        // Generate Project Rows HTML
-        let projectRows = '';
-        const activeProjects = projects.filter(p => p.id !== 'prj-none');
-        if (activeProjects.length === 0) {
-            projectRows = '<tr><td colspan="6" style="text-align:center; color:#9CA3AF;">No active projects recorded.</td></tr>';
-        } else {
-            activeProjects.forEach(p => {
-                const pct = p.budget > 0 ? Math.min(100, Math.round((p.spent / p.budget) * 100)) : 0;
-                const remaining = p.budget - p.spent;
-                projectRows += `
-                    <tr>
-                        <td><strong>${p.name}</strong></td>
-                        <td>${p.client}</td>
-                        <td>${formatCurrency(p.budget)}</td>
-                        <td>${formatCurrency(p.spent)}</td>
-                        <td>${formatCurrency(remaining)}</td>
-                        <td>
-                            <div class="progress-container">
-                                <div class="progress-bar" style="width: ${pct}%; background-color: ${pct >= 95 ? '#EF4444' : (pct >= 80 ? '#F59E0B' : '#0B5D3F')};"></div>
-                            </div>
-                            <span style="font-size:0.75rem; font-weight:700; color:#4B5563;">${pct}%</span>
-                        </td>
+                        <td>${descHtml}</td>
                     </tr>
                 `;
             });
@@ -1751,23 +1810,6 @@ function exportReport(format) {
                         background-color: #F9FAFB;
                     }
                     
-                    /* Progress Bar styling */
-                    .progress-container {
-                        width: 100px;
-                        height: 6px;
-                        background-color: #E5E7EB;
-                        border-radius: 3px;
-                        overflow: hidden;
-                        display: inline-block;
-                        vertical-align: middle;
-                        margin-right: 8px;
-                    }
-                    
-                    .progress-bar {
-                        height: 100%;
-                        border-radius: 3px;
-                    }
-                    
                     /* Badges */
                     .badge {
                         display: inline-flex;
@@ -1787,6 +1829,20 @@ function exportReport(format) {
                     /* Page Breaks control */
                     .printable-section {
                         page-break-inside: avoid;
+                    }
+                    
+                    .desc-highlight {
+                        font-size: 0.775rem;
+                        color: #0B5D3F;
+                        background-color: #E6F4EA;
+                        padding: 6px 10px;
+                        border-radius: 6px;
+                        font-weight: 500;
+                        border-left: 3px solid #0B5D3F;
+                        display: inline-block;
+                        margin: 2px 0;
+                        word-break: break-word;
+                        max-width: 250px;
                     }
                     
                     @media print {
@@ -1816,10 +1872,6 @@ function exportReport(format) {
                             -webkit-print-color-adjust: exact;
                             print-color-adjust: exact;
                         }
-                        .progress-bar {
-                            -webkit-print-color-adjust: exact;
-                            print-color-adjust: exact;
-                        }
                     }
                 </style>
             </head>
@@ -1839,12 +1891,12 @@ function exportReport(format) {
                 <!-- Accounts balances cards -->
                 <div class="summary-grid">
                     <div class="summary-card">
-                        <div class="card-label">Cash Account Balance</div>
-                        <div class="card-value">${formatCurrency(cashAvailable)}</div>
+                        <div class="card-label">HDFC Current Account</div>
+                        <div class="card-value">${formatCurrency(hdfcBalance)}</div>
                     </div>
                     <div class="summary-card">
-                        <div class="card-label">Bank/UPI Account Balance</div>
-                        <div class="card-value">${formatCurrency(bankBalance)}</div>
+                        <div class="card-label">Hafeez Personal Account</div>
+                        <div class="card-value">${formatCurrency(hafeezBalance)}</div>
                     </div>
                     <div class="summary-card">
                         <div class="card-label">Supplier Outstanding</div>
@@ -1856,26 +1908,6 @@ function exportReport(format) {
                     </div>
                 </div>
 
-                <!-- Section: Projects -->
-                <div class="printable-section">
-                    <div class="section-title">Project Budgets Status</div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Project Name</th>
-                                <th>Client Name</th>
-                                <th>Total Budget</th>
-                                <th>Spent To Date</th>
-                                <th>Remaining Balance</th>
-                                <th>Budget Usage %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${projectRows}
-                        </tbody>
-                    </table>
-                </div>
-
                 <!-- Section: Expenses -->
                 <div class="printable-section">
                     <div class="section-title">Expense Transactions Registry</div>
@@ -1884,11 +1916,10 @@ function exportReport(format) {
                             <tr>
                                 <th>Expense ID</th>
                                 <th>Vendor/Supplier</th>
-                                <th>Category</th>
-                                <th>Project Location</th>
+                                <th>Bank Account</th>
                                 <th>Gross Amount</th>
-                                <th>Method</th>
-                                <th>Workflow Status</th>
+                                <th>Status</th>
+                                <th>Description / Purpose</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1898,17 +1929,17 @@ function exportReport(format) {
                 </div>
 
                 <!-- Section: Vendors -->
-                <div class="printable-section" style="margin-top: 20px;">
-                    <div class="section-title">Vendor & Supplier Ledger Directory</div>
+                <div class="printable-section">
+                    <div class="section-title">Supplier & Vendor Directory</div>
                     <table>
                         <thead>
                             <tr>
                                 <th>Supplier Name</th>
-                                <th>Contact Phone</th>
+                                <th>Phone Number</th>
                                 <th>GST Reference</th>
-                                <th>Registered Address</th>
+                                <th>Address</th>
                                 <th>Opening Balance</th>
-                                <th>Outstanding Balance</th>
+                                <th>Outstanding Dues</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1919,7 +1950,7 @@ function exportReport(format) {
             </body>
             </html>
         `;
-        
+
         const win = window.open('', '_blank');
         win.document.write(content);
         win.document.close();
@@ -2052,6 +2083,16 @@ function setupEventListeners() {
     const expForm = document.getElementById('expense-entry-form');
     if (expForm) {
         expForm.addEventListener('submit', saveExpenseForm);
+    }
+
+    const incForm = document.getElementById('income-entry-form');
+    if (incForm) {
+        incForm.addEventListener('submit', saveIncomeForm);
+    }
+
+    const trfForm = document.getElementById('transfer-entry-form');
+    if (trfForm) {
+        trfForm.addEventListener('submit', saveTransferForm);
     }
 
     // OCR Drag & Drop events
@@ -2492,20 +2533,8 @@ function exportSingleExpensePDF(expenseId) {
                         <p>${dateStr}</p>
                     </div>
                     <div class="detail-item">
-                        <h4>Expense Category</h4>
-                        <p>${exp.category}</p>
-                    </div>
-                    <div class="detail-item">
-                        <h4>Project Reference</h4>
-                        <p>${project.name}</p>
-                    </div>
-                    <div class="detail-item">
-                        <h4>Payment Method</h4>
-                        <p>${exp.paymentMethod}</p>
-                    </div>
-                    <div class="detail-item">
-                        <h4>Transaction / Reference ID</h4>
-                        <p>${exp.transactionNo || 'N/A'}</p>
+                        <h4>Bank Account</h4>
+                        <p>${exp.bankAccount || exp.paymentMethod || 'HDFC Current Account'}</p>
                     </div>
                     <div class="detail-item">
                         <h4>GST Identification Number</h4>
@@ -2551,7 +2580,6 @@ function exportSingleExpensePDF(expenseId) {
 function exportExpensesPDF() {
     const expenses = db.getExpenses();
     const vendors = db.getVendors();
-    const projects = db.getProjects();
     
     // Apply exact same filters as renderExpensesList()
     let filtered = expenses;
@@ -2581,15 +2609,6 @@ function exportExpensesPDF() {
     if (activeFilters.vendor !== 'all') {
         filtered = filtered.filter(e => e.vendorId === activeFilters.vendor);
     }
-    if (activeFilters.project !== 'all') {
-        filtered = filtered.filter(e => e.projectId === activeFilters.project);
-    }
-    if (activeFilters.category !== 'all') {
-        filtered = filtered.filter(e => e.category === activeFilters.category);
-    }
-    if (activeFilters.paymentMethod !== 'all') {
-        filtered = filtered.filter(e => e.paymentMethod === activeFilters.paymentMethod);
-    }
     if (activeFilters.status !== 'all') {
         filtered = filtered.filter(e => e.status === activeFilters.status);
     }
@@ -2598,12 +2617,9 @@ function exportExpensesPDF() {
         const query = expenseFilterSearch.toLowerCase();
         filtered = filtered.filter(e => {
             const vName = (vendors.find(v => v.id === e.vendorId)?.name || '').toLowerCase();
-            const pName = (projects.find(p => p.id === e.projectId)?.name || '').toLowerCase();
             return (
                 e.id.toLowerCase().includes(query) ||
                 vName.includes(query) ||
-                pName.includes(query) ||
-                e.category.toLowerCase().includes(query) ||
                 (e.description || '').toLowerCase().includes(query)
             );
         });
@@ -2622,22 +2638,20 @@ function exportExpensesPDF() {
 
     let rowsHtml = '';
     if (filtered.length === 0) {
-        rowsHtml = '<tr><td colspan="8" style="text-align:center; color:#9CA3AF;">No expenses matched the current filters.</td></tr>';
+        rowsHtml = '<tr><td colspan="6" style="text-align:center; color:#9CA3AF;">No expenses matched the current filters.</td></tr>';
     } else {
         filtered.forEach(e => {
             const vName = vendors.find(v => v.id === e.vendorId)?.name || 'Unknown';
-            const pName = projects.find(p => p.id === e.projectId)?.name || 'No Project';
+            const dateStr = new Date(e.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
             const descHtml = e.description ? `<span class="desc-highlight">${e.description}</span>` : '<span style="color:#9CA3AF; font-size:0.75rem; font-style:italic;">No details provided</span>';
             rowsHtml += `
                 <tr>
+                    <td>${dateStr}</td>
                     <td><strong>${e.id}</strong></td>
                     <td>${vName}</td>
-                    <td>${e.category}</td>
-                    <td>${pName}</td>
-                    <td>${descHtml}</td>
+                    <td>${e.bankAccount || e.paymentMethod || 'HDFC Current Account'}</td>
                     <td><strong>${formatCurrency(e.amount)}</strong></td>
-                    <td>${e.paymentMethod}</td>
-                    <td><span class="badge ${e.status.toLowerCase()}">${e.status}</span></td>
+                    <td>${descHtml}</td>
                 </tr>
             `;
         });
@@ -2714,14 +2728,230 @@ function exportExpensesPDF() {
             <table>
                 <thead>
                     <tr>
-                        <th>Expense ID</th>
+                        <th>Date</th>
+                        <th>Expense Number</th>
                         <th>Vendor / Supplier</th>
-                        <th>Category</th>
-                        <th>Project Reference</th>
-                        <th>Purpose / Description</th>
+                        <th>Bank Account</th>
                         <th>Gross Amount</th>
-                        <th>Method</th>
-                        <th>Status</th>
+                        <th>Description / Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        </body>
+        </html>
+    `;
+
+    const win = window.open('', '_blank');
+    win.document.write(content);
+    win.document.close();
+    win.print();
+}
+
+function exportIncomesPDF() {
+    const incomes = db.getIncomes();
+    
+    let rowsHtml = '';
+    if (incomes.length === 0) {
+        rowsHtml = '<tr><td colspan="6" style="text-align:center; color:#9CA3AF;">No income records found.</td></tr>';
+    } else {
+        incomes.forEach(inc => {
+            const dateStr = new Date(inc.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+            const descHtml = inc.description ? `<span class="desc-highlight">${inc.description}</span>` : '<span style="color:#9CA3AF; font-size:0.75rem; font-style:italic;">No details provided</span>';
+            rowsHtml += `
+                <tr>
+                    <td>${dateStr}</td>
+                    <td><strong>${inc.id}</strong></td>
+                    <td>${inc.customer}</td>
+                    <td>${inc.bankAccount}</td>
+                    <td><strong>${formatCurrency(inc.amount)}</strong></td>
+                    <td>${descHtml}</td>
+                </tr>
+            `;
+        });
+    }
+
+    const total = incomes.reduce((sum, i) => sum + Number(i.amount), 0);
+
+    const content = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>ZOOSH Income Statement</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+                body { font-family: 'Plus Jakarta Sans', sans-serif; color: #111827; padding: 40px; margin: 0; }
+                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #E5E7EB; padding-bottom: 20px; margin-bottom: 30px; }
+                .brand h1 { font-size: 1.5rem; font-weight: 800; color: #0B5D3F; margin: 0; }
+                .brand span { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #0B5D3F; }
+                .meta { text-align: right; font-size: 0.8rem; color: #4B5563; }
+                .summary { background-color: #F8F9FA; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; display: flex; gap: 30px; margin-bottom: 30px; }
+                .summary-item span { font-size: 0.75rem; font-weight: 700; color: #6B7280; text-transform: uppercase; display: block; margin-bottom: 4px; }
+                .summary-item p { font-size: 1.25rem; font-weight: 800; color: #0B5D3F; margin: 0; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th { background-color: #E6F4EA; color: #0B5D3F; font-size: 0.75rem; text-transform: uppercase; padding: 10px 14px; border: 1px solid #E5E7EB; text-align: left; }
+                td { padding: 10px 14px; border: 1px solid #E5E7EB; font-size: 0.85rem; color: #1F2937; }
+                tr:nth-child(even) { background-color: #F9FAFB; }
+                .desc-highlight {
+                    font-size: 0.775rem;
+                    color: #0B5D3F;
+                    background-color: #E6F4EA;
+                    padding: 6px 10px;
+                    border-radius: 6px;
+                    font-weight: 500;
+                    border-left: 3px solid #0B5D3F;
+                    display: inline-block;
+                    margin: 2px 0;
+                    word-break: break-word;
+                    max-width: 250px;
+                }
+                @media print {
+                    th { background-color: #E6F4EA !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .desc-highlight { background-color: #E6F4EA !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="brand">
+                    <h1>ZOOSH FURNITURES</h1>
+                    <span>Income Statement</span>
+                </div>
+                <div class="meta">
+                    <p style="margin:0; font-weight:700;">Customer Incomes Registry</p>
+                    <p style="margin:2px 0 0 0;">Generated: ${new Date().toLocaleString()}</p>
+                </div>
+            </div>
+            <div class="summary">
+                <div class="summary-item">
+                    <span>Total Income Amount</span>
+                    <p>${formatCurrency(total)}</p>
+                </div>
+                <div class="summary-item">
+                    <span>Entries Count</span>
+                    <p>${incomes.length} records</p>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Income Number</th>
+                        <th>Customer</th>
+                        <th>Deposit Account</th>
+                        <th>Gross Amount</th>
+                        <th>Description / Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        </body>
+        </html>
+    `;
+
+    const win = window.open('', '_blank');
+    win.document.write(content);
+    win.document.close();
+    win.print();
+}
+
+function exportTransfersPDF() {
+    const transfers = db.getTransfers();
+    
+    let rowsHtml = '';
+    if (transfers.length === 0) {
+        rowsHtml = '<tr><td colspan="5" style="text-align:center; color:#9CA3AF;">No transfer records found.</td></tr>';
+    } else {
+        transfers.forEach(trf => {
+            const dateStr = new Date(trf.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+            const descHtml = trf.description ? `<span class="desc-highlight">${trf.description}</span>` : '<span style="color:#9CA3AF; font-size:0.75rem; font-style:italic;">No details provided</span>';
+            rowsHtml += `
+                <tr>
+                    <td>${dateStr}</td>
+                    <td>${trf.fromAccount}</td>
+                    <td>${trf.toAccount}</td>
+                    <td><strong>${formatCurrency(trf.amount)}</strong></td>
+                    <td>${descHtml}</td>
+                </tr>
+            `;
+        });
+    }
+
+    const total = transfers.reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const content = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>ZOOSH Transfers Statement</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+                body { font-family: 'Plus Jakarta Sans', sans-serif; color: #111827; padding: 40px; margin: 0; }
+                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #E5E7EB; padding-bottom: 20px; margin-bottom: 30px; }
+                .brand h1 { font-size: 1.5rem; font-weight: 800; color: #0B5D3F; margin: 0; }
+                .brand span { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #0B5D3F; }
+                .meta { text-align: right; font-size: 0.8rem; color: #4B5563; }
+                .summary { background-color: #F8F9FA; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; display: flex; gap: 30px; margin-bottom: 30px; }
+                .summary-item span { font-size: 0.75rem; font-weight: 700; color: #6B7280; text-transform: uppercase; display: block; margin-bottom: 4px; }
+                .summary-item p { font-size: 1.25rem; font-weight: 800; color: #0B5D3F; margin: 0; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th { background-color: #E6F4EA; color: #0B5D3F; font-size: 0.75rem; text-transform: uppercase; padding: 10px 14px; border: 1px solid #E5E7EB; text-align: left; }
+                td { padding: 10px 14px; border: 1px solid #E5E7EB; font-size: 0.85rem; color: #1F2937; }
+                tr:nth-child(even) { background-color: #F9FAFB; }
+                .desc-highlight {
+                    font-size: 0.775rem;
+                    color: #0B5D3F;
+                    background-color: #E6F4EA;
+                    padding: 6px 10px;
+                    border-radius: 6px;
+                    font-weight: 500;
+                    border-left: 3px solid #0B5D3F;
+                    display: inline-block;
+                    margin: 2px 0;
+                    word-break: break-word;
+                    max-width: 250px;
+                }
+                @media print {
+                    th { background-color: #E6F4EA !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .desc-highlight { background-color: #E6F4EA !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="brand">
+                    <h1>ZOOSH FURNITURES</h1>
+                    <span>Transfers Statement</span>
+                </div>
+                <div class="meta">
+                    <p style="margin:0; font-weight:700;">Account Transfers Directory</p>
+                    <p style="margin:2px 0 0 0;">Generated: ${new Date().toLocaleString()}</p>
+                </div>
+            </div>
+            <div class="summary">
+                <div class="summary-item">
+                    <span>Total Volume Transferred</span>
+                    <p>${formatCurrency(total)}</p>
+                </div>
+                <div class="summary-item">
+                    <span>Transfers Count</span>
+                    <p>${transfers.length} transfers</p>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>From Account</th>
+                        <th>To Account</th>
+                        <th>Transfer Amount</th>
+                        <th>Description / Purpose</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -3057,11 +3287,13 @@ async function saveSupabaseSettings() {
 async function pushLocalDataToSupabase() {
     if (!supabaseClient) return;
     try {
-        const expenses = db.getExpenses();
+        const users = db.getUsers();
         const vendors = db.getVendors();
         const projects = db.getProjects();
+        const expenses = db.getExpenses();
         const txns = db.getTransactions();
-        const users = db.getUsers();
+        const incomes = db.getIncomes();
+        const transfers = db.getTransfers();
         
         // Push Users
         for (const u of users) {
@@ -3082,6 +3314,14 @@ async function pushLocalDataToSupabase() {
         // Push Transactions
         for (const t of txns) {
             await pushToSupabase('transactions', t);
+        }
+        // Push Incomes
+        for (const i of incomes) {
+            await pushToSupabase('incomes', i);
+        }
+        // Push Transfers
+        for (const tr of transfers) {
+            await pushToSupabase('transfers', tr);
         }
         
         console.log("One-time local storage database push to Supabase complete.");
@@ -3128,7 +3368,8 @@ async function pullFromSupabase() {
                 approvedBy: e.approved_by,
                 transactionNo: e.transaction_no,
                 gst: e.gst,
-                createdAt: e.created_at
+                createdAt: e.created_at,
+                bankAccount: e.bank_account
             }));
             db.setData('zoosh_expenses', mapped);
             db.recalculateProjectSpending();
@@ -3139,10 +3380,42 @@ async function pullFromSupabase() {
         if (!errT && txns) {
             db.setData('zoosh_transactions', txns);
         }
+
+        // Pull Incomes
+        const { data: incomes, error: errInc } = await supabaseClient.from('incomes').select('*');
+        if (!errInc && incomes) {
+            const mappedIncomes = incomes.map(i => ({
+                id: i.id,
+                amount: Number(i.amount),
+                customer: i.customer,
+                bankAccount: i.bank_account,
+                date: i.date,
+                description: i.description,
+                createdAt: i.created_at
+            }));
+            db.setData('zoosh_incomes', mappedIncomes);
+        }
+
+        // Pull Transfers
+        const { data: transfers, error: errTrf } = await supabaseClient.from('transfers').select('*');
+        if (!errTrf && transfers) {
+            const mappedTransfers = transfers.map(t => ({
+                id: t.id,
+                fromAccount: t.from_account,
+                toAccount: t.to_account,
+                amount: Number(t.amount),
+                date: t.date,
+                description: t.description,
+                createdAt: t.created_at
+            }));
+            db.setData('zoosh_transfers', mappedTransfers);
+        }
         
         // Refresh views
         renderDashboard();
         renderExpensesList();
+        if (typeof renderIncomesList === 'function') renderIncomesList();
+        if (typeof renderTransfersList === 'function') renderTransfersList();
     } catch (e) {
         console.error("Error pulling from Supabase:", e);
     }
@@ -3167,7 +3440,8 @@ async function pushToSupabase(table, record) {
                 approved_by: record.approvedBy,
                 transaction_no: record.transactionNo,
                 gst: record.gst,
-                created_at: record.createdAt
+                created_at: record.createdAt,
+                bank_account: record.bankAccount
             };
         } else if (table === 'vendors') {
             payload = {
@@ -3196,6 +3470,26 @@ async function pushToSupabase(table, record) {
                 description: record.description,
                 created_at: record.createdAt
             };
+        } else if (table === 'incomes') {
+            payload = {
+                id: record.id,
+                amount: record.amount,
+                customer: record.customer,
+                bank_account: record.bankAccount,
+                date: record.date,
+                description: record.description,
+                created_at: record.createdAt || record.date
+            };
+        } else if (table === 'transfers') {
+            payload = {
+                id: record.id,
+                from_account: record.fromAccount,
+                to_account: record.toAccount,
+                amount: record.amount,
+                date: record.date,
+                description: record.description,
+                created_at: record.createdAt || record.date
+            };
         } else if (table === 'users') {
             payload = {
                 id: record.id,
@@ -3218,5 +3512,250 @@ async function deleteFromSupabase(table, id) {
         if (error) console.error(`Failed to delete from Supabase ${table}:`, error);
     } catch (e) {
         console.error(`Exception deleting from Supabase ${table}:`, e);
+    }
+}
+
+// ----------------------------------------------------
+// [NEW] INCOMES & TRANSFERS MODULES DEFINITIONS
+// ----------------------------------------------------
+
+function renderIncomesList() {
+    const incomes = db.getIncomes();
+    const container = document.getElementById('incomes-cards-grid');
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (incomes.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 48px 24px; color: var(--text-secondary); background: var(--bg-card); border-radius: var(--radius-xl); border: 1px solid var(--border-color);">
+                <i data-lucide="info" style="width: 48px; height: 48px; margin: 0 auto 16px auto; color: var(--text-muted); display: block;"></i>
+                <h4 style="margin-bottom: 8px;">No incomes recorded</h4>
+                <p style="font-size: 0.85rem;">Click 'Add Income' to record customer payment.</p>
+            </div>
+        `;
+        return;
+    }
+
+    incomes.forEach(inc => {
+        const dateStr = new Date(inc.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        container.innerHTML += `
+            <div class="project-progress-card">
+                <div class="project-card-header" style="margin-bottom: 12px;">
+                    <div>
+                        <span style="font-size: 0.7rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">${inc.id}</span>
+                        <h4 style="font-size: 1.15rem; font-weight:800; margin-top:2px;">${inc.customer}</h4>
+                    </div>
+                    <div class="card-icon-wrap" style="background-color: var(--primary-light); color: var(--primary);">
+                        <i data-lucide="trending-up"></i>
+                    </div>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
+                    <p style="font-weight:700; font-size:1.3rem; color:var(--text-primary); margin-bottom:4px;">${formatCurrency(inc.amount)}</p>
+                    <p style="display:flex; align-items:center; gap:6px; font-weight:600;"><i data-lucide="landmark" style="width:14px; color:var(--primary);"></i> ${inc.bankAccount}</p>
+                    <p style="display:flex; align-items:center; gap:6px; margin-top:4px;"><i data-lucide="calendar" style="width:14px;"></i> ${dateStr}</p>
+                    <p style="margin-top: 8px; font-weight: 500; font-size: 0.8rem; color: var(--text-secondary); border-top:1px dashed var(--border-color); padding-top:8px; white-space: pre-wrap; overflow-wrap: break-word; word-wrap: break-word;">${inc.description}</p>
+                </div>
+                <div style="display:flex; gap:8px; border-top: 1px solid var(--border-color); padding-top:12px; margin-top:12px;">
+                    <button class="btn btn-secondary" style="flex:1; padding: 6px 12px; font-size: 0.75rem; height: 32px;" onclick="editIncomeAction('${inc.id}')"><i data-lucide="edit-3" style="width:12px;"></i> Edit</button>
+                    <button class="btn btn-danger" style="flex:1; padding: 6px 12px; font-size: 0.75rem; height: 32px;" onclick="deleteIncomeAction('${inc.id}')"><i data-lucide="trash-2" style="width:12px;"></i> Delete</button>
+                </div>
+            </div>
+        `;
+    });
+    lucide.createIcons();
+}
+
+function renderTransfersList() {
+    const transfers = db.getTransfers();
+    const container = document.getElementById('transfers-cards-grid');
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (transfers.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 48px 24px; color: var(--text-secondary); background: var(--bg-card); border-radius: var(--radius-xl); border: 1px solid var(--border-color);">
+                <i data-lucide="info" style="width: 48px; height: 48px; margin: 0 auto 16px auto; color: var(--text-muted); display: block;"></i>
+                <h4 style="margin-bottom: 8px;">No transfers recorded</h4>
+                <p style="font-size: 0.85rem;">Click 'Create Transfer' to transfer money between accounts.</p>
+            </div>
+        `;
+        return;
+    }
+
+    transfers.forEach(trf => {
+        const dateStr = new Date(trf.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        container.innerHTML += `
+            <div class="project-progress-card">
+                <div class="project-card-header" style="margin-bottom: 12px;">
+                    <div>
+                        <span style="font-size: 0.7rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">${trf.id}</span>
+                        <h4 style="font-weight: 800; font-size: 1rem; margin-top:2px;">Account Transfer</h4>
+                    </div>
+                    <div class="card-icon-wrap" style="background-color: var(--primary-light); color: var(--primary);">
+                        <i data-lucide="shuffle"></i>
+                    </div>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
+                    <p style="font-weight:700; font-size:1.3rem; color:var(--text-primary); margin-bottom:8px;">${formatCurrency(trf.amount)}</p>
+                    <div style="display:flex; flex-direction:column; gap:4px; font-weight: 600; margin-bottom:8px;">
+                        <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="arrow-up-right" style="width:14px; color:var(--danger);"></i> From: <strong style="color:var(--text-primary);">${trf.fromAccount}</strong></span>
+                        <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="arrow-down-left" style="width:14px; color:var(--success);"></i> To: <strong style="color:var(--text-primary);">${trf.toAccount}</strong></span>
+                    </div>
+                    <p style="display:flex; align-items:center; gap:6px;"><i data-lucide="calendar" style="width:14px;"></i> ${dateStr}</p>
+                    <p style="margin-top: 8px; font-weight: 500; font-size: 0.8rem; color: var(--text-secondary); border-top:1px dashed var(--border-color); padding-top:8px; white-space: pre-wrap; overflow-wrap: break-word; word-wrap: break-word;">${trf.description}</p>
+                </div>
+                <div style="display:flex; gap:8px; border-top: 1px solid var(--border-color); padding-top:12px; margin-top:12px;">
+                    <button class="btn btn-secondary" style="flex:1; padding: 6px 12px; font-size: 0.75rem; height: 32px;" onclick="editTransferAction('${trf.id}')"><i data-lucide="edit-3" style="width:12px;"></i> Edit</button>
+                    <button class="btn btn-danger" style="flex:1; padding: 6px 12px; font-size: 0.75rem; height: 32px;" onclick="deleteTransferAction('${trf.id}')"><i data-lucide="trash-2" style="width:12px;"></i> Delete</button>
+                </div>
+            </div>
+        `;
+    });
+    lucide.createIcons();
+}
+
+function saveIncomeForm(event) {
+    event.preventDefault();
+    
+    const amount = Number(document.getElementById('inc-amount').value);
+    const customer = document.getElementById('inc-customer').value.trim();
+    const bankAccount = document.getElementById('inc-bank-account').value;
+    const dateInput = document.getElementById('inc-date').value;
+    const description = document.getElementById('inc-description').value.trim();
+    const incId = document.getElementById('inc-id').value;
+
+    if (!amount || !customer || !bankAccount || !dateInput || !description) {
+        alert('Please fill out all required fields.');
+        return;
+    }
+
+    const nextId = incId || 'INC-' + String(db.getIncomes().length + 1).padStart(3, '0');
+    const dateStr = new Date(dateInput).toISOString();
+
+    const incomeObj = {
+        id: nextId,
+        amount,
+        customer,
+        bankAccount,
+        date: dateStr,
+        description,
+        attachments: []
+    };
+
+    db.saveIncome(incomeObj);
+    if (typeof pushToSupabase === 'function') {
+        pushToSupabase('incomes', incomeObj);
+    }
+
+    // Reset form and go back
+    document.getElementById('income-entry-form').reset();
+    document.getElementById('inc-id').value = '';
+    
+    if (typeof confetti === 'function') {
+        confetti({ particleCount: 30, spread: 30 });
+    }
+    
+    switchView('incomes');
+}
+
+function saveTransferForm(event) {
+    event.preventDefault();
+    
+    const amount = Number(document.getElementById('trf-amount').value);
+    const fromAccount = document.getElementById('trf-from').value.trim();
+    const toAccount = document.getElementById('trf-to').value.trim();
+    const dateInput = document.getElementById('trf-date').value;
+    const description = document.getElementById('trf-description').value.trim();
+    const trfId = document.getElementById('trf-id').value;
+
+    if (!amount || !fromAccount || !toAccount || !dateInput || !description) {
+        alert('Please fill out all required fields.');
+        return;
+    }
+
+    if (fromAccount.toLowerCase() === toAccount.toLowerCase()) {
+        alert('Validation Error: From Account and To Account cannot be identical.');
+        return;
+    }
+
+    if (amount <= 0) {
+        alert('Validation Error: Amount must be greater than zero.');
+        return;
+    }
+
+    const nextId = trfId || 'TRF-' + String(db.getTransfers().length + 1).padStart(3, '0');
+    const dateStr = new Date(dateInput).toISOString();
+
+    const transferObj = {
+        id: nextId,
+        amount,
+        fromAccount,
+        toAccount,
+        date: dateStr,
+        description,
+        attachments: []
+    };
+
+    db.saveTransfer(transferObj);
+    if (typeof pushToSupabase === 'function') {
+        pushToSupabase('transfers', transferObj);
+    }
+
+    // Reset form and go back
+    document.getElementById('transfer-entry-form').reset();
+    document.getElementById('trf-id').value = '';
+    
+    if (typeof confetti === 'function') {
+        confetti({ particleCount: 30, spread: 30 });
+    }
+    
+    switchView('transfers');
+}
+
+function editIncomeAction(id) {
+    const inc = db.getIncomes().find(i => i.id === id);
+    if (!inc) return;
+
+    switchView('add-income');
+    document.getElementById('inc-id').value = inc.id;
+    document.getElementById('inc-amount').value = inc.amount;
+    document.getElementById('inc-customer').value = inc.customer;
+    document.getElementById('inc-bank-account').value = inc.bankAccount;
+    document.getElementById('inc-date').value = new Date(inc.date).toISOString().slice(0, 16);
+    document.getElementById('inc-description').value = inc.description;
+}
+
+function deleteIncomeAction(id) {
+    if (confirm('Are you sure you want to delete this income record?')) {
+        db.deleteIncome(id);
+        if (typeof deleteFromSupabase === 'function') {
+            deleteFromSupabase('incomes', id);
+        }
+        renderIncomesList();
+        renderDashboard();
+    }
+}
+
+function editTransferAction(id) {
+    const trf = db.getTransfers().find(t => t.id === id);
+    if (!trf) return;
+
+    switchView('add-transfer');
+    document.getElementById('trf-id').value = trf.id;
+    document.getElementById('trf-amount').value = trf.amount;
+    document.getElementById('trf-from').value = trf.fromAccount;
+    document.getElementById('trf-to').value = trf.toAccount;
+    document.getElementById('trf-date').value = new Date(trf.date).toISOString().slice(0, 16);
+    document.getElementById('trf-description').value = trf.description;
+}
+
+function deleteTransferAction(id) {
+    if (confirm('Are you sure you want to delete this transfer record?')) {
+        db.deleteTransfer(id);
+        if (typeof deleteFromSupabase === 'function') {
+            deleteFromSupabase('transfers', id);
+        }
+        renderTransfersList();
+        renderDashboard();
     }
 }

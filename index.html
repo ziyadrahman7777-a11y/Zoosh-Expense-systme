@@ -50,6 +50,18 @@
                         <span>Expenses</span>
                     </a>
                 </li>
+                <li class="menu-item" data-view="incomes">
+                    <a href="#">
+                        <i data-lucide="trending-up"></i>
+                        <span>Incomes</span>
+                    </a>
+                </li>
+                <li class="menu-item" data-view="transfers">
+                    <a href="#">
+                        <i data-lucide="arrow-left-right"></i>
+                        <span>Transfers</span>
+                    </a>
+                </li>
                 <li class="menu-item" data-view="add-expense">
                     <a href="#">
                         <i data-lucide="plus-circle"></i>
@@ -312,38 +324,53 @@
                         <!-- Right Sidebar Column -->
                         <div class="dashboard-right">
                             
-                            <!-- Financial Accounts Balance -->
+                            <!-- Predefined Wallet Bank Accounts [UPDATED] -->
                             <div class="card-block" style="background: linear-gradient(180deg, var(--bg-card) 0%, var(--primary-light) 100%);">
                                 <div class="block-header" style="margin-bottom: 16px;">
-                                    <h3 class="block-title" style="font-size: 1rem;"><i data-lucide="wallet"></i> Accounts Balances</h3>
+                                    <h3 class="block-title" style="font-size: 1rem;"><i data-lucide="wallet"></i> Wallet Bank Accounts</h3>
                                 </div>
-                                <div style="display:flex; flex-direction:column; gap:16px;">
-                                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom:12px;">
-                                        <div>
-                                            <span style="font-size:0.75rem; color:var(--text-secondary); display:block; font-weight:600;">Cash Available</span>
-                                            <p style="font-size:1.3rem; font-weight:800;" id="dash-cash-avail">₹0</p>
+                                <div style="display:flex; flex-direction:column; gap:20px;">
+                                    <!-- HDFC Current Account Card -->
+                                    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-md);">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                                            <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase;">HDFC Current Account</span>
+                                            <i data-lucide="landmark" style="width:16px; height:16px; color:var(--primary);"></i>
                                         </div>
-                                        <div class="card-icon-wrap" style="background-color: var(--bg-card);"><i data-lucide="coins"></i></div>
-                                    </div>
-                                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom:12px;">
-                                        <div>
-                                            <span style="font-size:0.75rem; color:var(--text-secondary); display:block; font-weight:600;">Bank Balance</span>
-                                            <p style="font-size:1.3rem; font-weight:800;" id="dash-bank-bal">₹0</p>
+                                        <div style="font-size:1.4rem; font-weight:800; color:var(--text-primary); margin-bottom:8px;" id="dash-hdfc-balance">₹0</div>
+                                        <div style="display:flex; justify-content:space-between; font-size:0.7rem; font-weight:600; color:var(--text-secondary);">
+                                            <span>In: <strong style="color:var(--success);" id="dash-hdfc-income">₹0</strong></span>
+                                            <span>Out: <strong style="color:var(--danger);" id="dash-hdfc-expenses">₹0</strong></span>
                                         </div>
-                                        <div class="card-icon-wrap" style="background-color: var(--bg-card);"><i data-lucide="landmark"></i></div>
                                     </div>
-                                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom:12px;">
-                                        <div>
-                                            <span style="font-size:0.75rem; color:var(--text-secondary); display:block; font-weight:600;">Pending Approvals</span>
-                                            <p style="font-size:1.3rem; font-weight:800; color:var(--warning);" id="dash-pending-payments">₹0</p>
+                                    <!-- Hafeez Personal Account Card -->
+                                    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-md);">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                                            <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase;">Hafeez Personal Account</span>
+                                            <i data-lucide="user" style="width:16px; height:16px; color:var(--primary);"></i>
                                         </div>
-                                        <div class="card-icon-wrap" style="background-color: var(--bg-card); color:var(--warning);"><i data-lucide="clock"></i></div>
+                                        <div style="font-size:1.4rem; font-weight:800; color:var(--text-primary); margin-bottom:8px;" id="dash-hafeez-balance">₹0</div>
+                                        <div style="display:flex; justify-content:space-between; font-size:0.7rem; font-weight:600; color:var(--text-secondary);">
+                                            <span>In: <strong style="color:var(--success);" id="dash-hafeez-income">₹0</strong></span>
+                                            <span>Out: <strong style="color:var(--danger);" id="dash-hafeez-expenses">₹0</strong></span>
+                                        </div>
                                     </div>
-                                    <button class="btn btn-secondary btn-full" style="font-size: 0.8rem; padding: 8px 12px; height: 38px;" onclick="openAddIncomeModal()">
-                                        <i data-lucide="plus"></i> Add Income / Capital
-                                    </button>
+                                    <!-- Overall Ledger Summary -->
+                                    <div style="border-top:1px solid var(--border-color); padding-top:12px;">
+                                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700; margin-bottom:6px;">
+                                            <span>Total Incoming Flow:</span>
+                                            <span style="color:var(--success);" id="dash-overall-income">₹0</span>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700; margin-bottom:6px;">
+                                            <span>Total Outgoing Flow:</span>
+                                            <span style="color:var(--danger);" id="dash-overall-expenses">₹0</span>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:800; border-top: 1px dashed var(--border-color); padding-top:6px;">
+                                            <span>Net Cash Flow:</span>
+                                            <span id="dash-net-cash-flow">₹0</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            </div>                  </div>
 
                             <!-- Projects Budgets tracking card -->
                             <div class="card-block">
@@ -491,37 +518,13 @@
                                     </div>
                                 </div>
 
-                                <!-- Expense Category Field -->
+                                <!-- Predefined Bank Account Dropdown -->
                                 <div class="form-group">
-                                    <label class="form-label" for="exp-category">Expense Category <span>*</span></label>
-                                    <div class="inline-action-group">
-                                        <select id="exp-category" class="select-control" required style="flex:1;">
-                                            <option value="">Select Category</option>
-                                        </select>
-                                        <button type="button" class="btn-inline-secondary" onclick="handleCreateCustomCategory()">
-                                            <i data-lucide="plus"></i> New Cat
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Project Field -->
-                                <div class="form-group">
-                                    <label class="form-label" for="exp-project">Project Integration</label>
-                                    <select id="exp-project" class="select-control">
-                                        <option value="">Select Project (Optional)</option>
-                                    </select>
-                                </div>
-
-                                <!-- Payment Method Field -->
-                                <div class="form-group">
-                                    <label class="form-label" for="exp-payment">Payment Method <span>*</span></label>
-                                    <select id="exp-payment" class="select-control" required>
-                                        <option value="">Select Payment Method</option>
-                                        <option value="Cash">Cash</option>
-                                        <option value="Bank">Bank Transfer</option>
-                                        <option value="UPI">UPI</option>
-                                        <option value="Cheque">Cheque</option>
-                                        <option value="Credit">Credit Card</option>
+                                    <label class="form-label" for="exp-bank-account">Bank Account <span>*</span></label>
+                                    <select id="exp-bank-account" class="select-control" required>
+                                        <option value="">Select Bank Account</option>
+                                        <option value="HDFC Current Account">HDFC Current Account</option>
+                                        <option value="Hafeez Personal Account">Hafeez Personal Account</option>
                                     </select>
                                 </div>
 
@@ -531,16 +534,10 @@
                                     <input type="datetime-local" id="exp-date" class="input-control">
                                 </div>
 
-                                <!-- Transaction Ref Field -->
-                                <div class="form-group">
-                                    <label class="form-label" for="exp-txn-number">Transaction / Bill Reference ID</label>
-                                    <input type="text" id="exp-txn-number" class="input-control" placeholder="TXNxxxxx or Bill number">
-                                </div>
-
-                                <!-- Description Field -->
+                                <!-- Mandatory Description Field -->
                                 <div class="form-group form-grid-full">
-                                    <label class="form-label" for="exp-description">Description / Notes</label>
-                                    <textarea id="exp-description" class="input-control" placeholder="Add invoice notes or itemized list details..."></textarea>
+                                    <label class="form-label" for="exp-description">Description / Notes <span>*</span></label>
+                                    <textarea id="exp-description" class="input-control" placeholder="Add invoice notes or itemized list details... (e.g. Purchased plywood sheets for factory stock)" required></textarea>
                                 </div>
 
                                 <!-- Bill OCR Upload area -->
@@ -570,6 +567,162 @@
                             <div class="button-row" style="margin-top: 32px;">
                                 <button type="button" class="btn btn-secondary" onclick="switchView('expenses')">Cancel</button>
                                 <button type="submit" class="btn btn-primary">Save Expense Receipt</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- [NEW] INCOMES VIEW -->
+                <section class="view-section" id="view-incomes">
+                    <div class="block-header" style="margin-bottom: 24px;">
+                        <h3 class="block-title"><i data-lucide="trending-up"></i> Customer Income Directory</h3>
+                        <div style="display:flex; gap:12px;">
+                            <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="exportIncomesPDF()">
+                                <i data-lucide="file-text" style="width: 16px; height: 16px; color: var(--primary);"></i> Export PDF
+                            </button>
+                            <button class="btn btn-primary" onclick="switchView('add-income')"><i data-lucide="plus"></i> Add Income</button>
+                        </div>
+                    </div>
+                    <div class="cards-list-grid" id="incomes-cards-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- [NEW] ADD INCOME SCREEN -->
+                <section class="view-section" id="view-add-income">
+                    <div class="card-block" style="max-width: 800px; margin: 0 auto;">
+                        <div class="block-header" style="border-bottom: 1px solid var(--border-color); padding-bottom:16px;">
+                            <h3 class="block-title"><i data-lucide="plus-circle"></i> Add New Income</h3>
+                            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">ZOOSH Furnitures</span>
+                        </div>
+                        
+                        <form id="income-entry-form" style="margin-top: 24px;">
+                            <input type="hidden" id="inc-id" value="">
+
+                            <!-- Amount Group -->
+                            <div class="form-group amount-group">
+                                <label class="form-label" style="color:var(--primary); font-size:0.9rem;">Income Amount <span>*</span></label>
+                                <div class="amount-input-container">
+                                    <span class="currency-symbol">₹</span>
+                                    <input type="number" id="inc-amount" placeholder="0" class="amount-field" required min="1">
+                                </div>
+                            </div>
+
+                            <div class="form-grid">
+                                <!-- Customer Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="inc-customer">Customer / Payer Name <span>*</span></label>
+                                    <input type="text" id="inc-customer" class="input-control" placeholder="Customer name" required>
+                                </div>
+
+                                <!-- Predefined Bank Account Dropdown -->
+                                <div class="form-group">
+                                    <label class="form-label" for="inc-bank-account">Deposit Bank Account <span>*</span></label>
+                                    <select id="inc-bank-account" class="select-control" required>
+                                        <option value="">Select Bank Account</option>
+                                        <option value="HDFC Current Account">HDFC Current Account</option>
+                                        <option value="Hafeez Personal Account">Hafeez Personal Account</option>
+                                    </select>
+                                </div>
+
+                                <!-- Date & Time Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="inc-date">Date Received <span>*</span></label>
+                                    <input type="datetime-local" id="inc-date" class="input-control" required>
+                                </div>
+
+                                <!-- Mandatory Description Field -->
+                                <div class="form-group form-grid-full">
+                                    <label class="form-label" for="inc-description">Description / Notes <span>*</span></label>
+                                    <textarea id="inc-description" class="input-control" placeholder="Description details (e.g. Advance Payment for factory order)" required></textarea>
+                                </div>
+
+                                <!-- Attachment Field -->
+                                <div class="form-group form-grid-full">
+                                    <label class="form-label">Attachment (Optional)</label>
+                                    <input type="file" id="inc-file" class="input-control" style="padding-top:10px;">
+                                </div>
+                            </div>
+
+                            <div class="button-row" style="margin-top: 32px;">
+                                <button type="button" class="btn btn-secondary" onclick="switchView('incomes')">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Save Income Log</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- [NEW] TRANSFERS VIEW -->
+                <section class="view-section" id="view-transfers">
+                    <div class="block-header" style="margin-bottom: 24px;">
+                        <h3 class="block-title"><i data-lucide="arrow-left-right"></i> Account Transfers Log</h3>
+                        <div style="display:flex; gap:12px;">
+                            <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="exportTransfersPDF()">
+                                <i data-lucide="file-text" style="width: 16px; height: 16px; color: var(--primary);"></i> Export PDF
+                            </button>
+                            <button class="btn btn-primary" onclick="switchView('add-transfer')"><i data-lucide="plus"></i> Create Transfer</button>
+                        </div>
+                    </div>
+                    <div class="cards-list-grid" id="transfers-cards-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- [NEW] ADD TRANSFER SCREEN -->
+                <section class="view-section" id="view-add-transfer">
+                    <div class="card-block" style="max-width: 800px; margin: 0 auto;">
+                        <div class="block-header" style="border-bottom: 1px solid var(--border-color); padding-bottom:16px;">
+                            <h3 class="block-title"><i data-lucide="shuffle"></i> Record Account Transfer</h3>
+                            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">ZOOSH Furnitures</span>
+                        </div>
+                        
+                        <form id="transfer-entry-form" style="margin-top: 24px;">
+                            <input type="hidden" id="trf-id" value="">
+
+                            <!-- Amount Group -->
+                            <div class="form-group amount-group">
+                                <label class="form-label" style="color:var(--primary); font-size:0.9rem;">Transfer Amount <span>*</span></label>
+                                <div class="amount-input-container">
+                                    <span class="currency-symbol">₹</span>
+                                    <input type="number" id="trf-amount" placeholder="0" class="amount-field" required min="1">
+                                </div>
+                            </div>
+
+                            <div class="form-grid">
+                                <!-- From Account Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="trf-from">From Account <span>*</span></label>
+                                    <input type="text" id="trf-from" class="input-control" placeholder="Source (e.g. HDFC Current Account, Cash)" required>
+                                </div>
+
+                                <!-- To Account Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="trf-to">To Account <span>*</span></label>
+                                    <input type="text" id="trf-to" class="input-control" placeholder="Destination (e.g. Hafeez Personal Account)" required>
+                                </div>
+
+                                <!-- Date Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="trf-date">Transfer Date <span>*</span></label>
+                                    <input type="datetime-local" id="trf-date" class="input-control" required>
+                                </div>
+
+                                <!-- Description Field -->
+                                <div class="form-group form-grid-full">
+                                    <label class="form-label" for="trf-description">Description / Notes <span>*</span></label>
+                                    <textarea id="trf-description" class="input-control" placeholder="Purpose details (e.g. Cash withdrawal for payroll)" required></textarea>
+                                </div>
+
+                                <!-- Attachment Field -->
+                                <div class="form-group form-grid-full">
+                                    <label class="form-label">Attachment (Optional)</label>
+                                    <input type="file" id="trf-file" class="input-control" style="padding-top:10px;">
+                                </div>
+                            </div>
+
+                            <div class="button-row" style="margin-top: 32px;">
+                                <button type="button" class="btn btn-secondary" onclick="switchView('transfers')">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Save Transfer Log</button>
                             </div>
                         </form>
                     </div>
@@ -750,20 +903,8 @@
                         <p id="det-vendor">Malabar Woods</p>
                     </div>
                     <div class="detail-item">
-                        <h5>Category</h5>
-                        <p id="det-category">Wood & Plywood</p>
-                    </div>
-                    <div class="detail-item">
-                        <h5>Project Location</h5>
-                        <p id="det-project">Villa Project - Palakkad</p>
-                    </div>
-                    <div class="detail-item">
-                        <h5>Payment Method</h5>
-                        <p id="det-payment-method">Bank Transfer</p>
-                    </div>
-                    <div class="detail-item">
-                        <h5>Transaction Ref / ID</h5>
-                        <p id="det-transaction-id">N/A</p>
+                        <h5>Bank Account</h5>
+                        <p id="det-bank-account">HDFC Current Account</p>
                     </div>
                     <div class="detail-item">
                         <h5>Date & Time</h5>
