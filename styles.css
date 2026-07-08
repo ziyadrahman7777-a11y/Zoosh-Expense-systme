@@ -135,6 +135,10 @@ a {
     transition: var(--transition-smooth);
 }
 
+.sidebar-role-switcher {
+    display: none;
+}
+
 .sidebar-brand {
     padding: 24px;
     display: flex;
