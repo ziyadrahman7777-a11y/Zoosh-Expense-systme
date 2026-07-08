@@ -205,6 +205,12 @@ function initApp() {
 function updateUserContext() {
     currentUser = db.getUsers().find(u => u.role === currentRole);
     
+    // Update role select values
+    const roleSelect = document.getElementById('active-role-switcher');
+    const roleSelectMob = document.getElementById('active-role-switcher-mob');
+    if (roleSelect) roleSelect.value = currentRole;
+    if (roleSelectMob) roleSelectMob.value = currentRole;
+    
     // Update top bar role displays
     document.querySelectorAll('.user-avatar').forEach(el => {
         el.textContent = currentUser.name.charAt(0);
@@ -510,6 +516,60 @@ function renderDashboard() {
             });
         }
     }
+
+    // Update mobile green hero card values
+    const mobileValEl = document.getElementById('dash-today-expenses-val');
+    const mobileCountEl = document.getElementById('dash-today-txns-count');
+    if (mobileValEl) mobileValEl.textContent = formatCurrency(todayExpenses);
+    if (mobileCountEl) mobileCountEl.textContent = todayTransactionsCount + (todayTransactionsCount === 1 ? ' Transaction' : ' Transactions');
+
+    // Render mobile Quick Summary grid
+    renderQuickSummary();
+}
+
+let quickSummaryFilterValue = 'this-month';
+
+function handleQuickSummaryFilterChange(val) {
+    quickSummaryFilterValue = val;
+    renderQuickSummary();
+}
+
+function renderQuickSummary() {
+    const expenses = db.getExpenses();
+    
+    // Filter expenses based on selected period
+    let filtered = expenses.filter(e => e.status !== 'Rejected' && e.status !== 'Cancelled');
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const startOfWeek = new Date();
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    if (quickSummaryFilterValue === 'today') {
+        filtered = filtered.filter(e => e.createdAt.startsWith(todayStr));
+    } else if (quickSummaryFilterValue === 'this-week') {
+        filtered = filtered.filter(e => new Date(e.createdAt) >= startOfWeek);
+    } else if (quickSummaryFilterValue === 'this-month') {
+        filtered = filtered.filter(e => new Date(e.createdAt) >= startOfMonth);
+    }
+    
+    // Calculations
+    const totalExpensesSum = filtered.reduce((sum, e) => sum + Number(e.amount), 0);
+    const woodSum = filtered.filter(e => e.category === 'Wood' || e.category === 'Plywood' || e.category === 'Wood & Plywood').reduce((sum, e) => sum + Number(e.amount), 0);
+    const salariesSum = filtered.filter(e => e.category === 'Salary' || e.category === 'Labour').reduce((sum, e) => sum + Number(e.amount), 0);
+    const transportSum = filtered.filter(e => e.category === 'Transport').reduce((sum, e) => sum + Number(e.amount), 0);
+    
+    // Update Quick Summary card elements
+    const totalEl = document.getElementById('quick-total-val');
+    const woodEl = document.getElementById('quick-wood-val');
+    const salariesEl = document.getElementById('quick-salaries-val');
+    const transportEl = document.getElementById('quick-transport-val');
+    
+    if (totalEl) totalEl.textContent = formatCurrency(totalExpensesSum);
+    if (woodEl) woodEl.textContent = formatCurrency(woodSum);
+    if (salariesEl) salariesEl.textContent = formatCurrency(salariesSum);
+    if (transportEl) transportEl.textContent = formatCurrency(transportSum);
 }
 
 function renderExpensesList() {
@@ -1847,6 +1907,13 @@ function downloadBlob(content, filename, contentType) {
 // ----------------------------------------------------
 // EVENT LISTENERS SETUP
 // ----------------------------------------------------
+function toggleSidebarDrawer() {
+    const sidebar = document.querySelector('.app-sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('active');
+    }
+}
+
 function setupEventListeners() {
     // Menu items
     document.querySelectorAll('.menu-item, .mobile-nav-item').forEach(btn => {
@@ -1865,13 +1932,22 @@ function setupEventListeners() {
         });
     }
 
-    // Role Switcher
+    // Role Switchers (both desktop top bar and mobile sidebar)
     const roleSelect = document.getElementById('active-role-switcher');
+    const roleSelectMob = document.getElementById('active-role-switcher-mob');
+    
+    function handleRoleChange(newRole) {
+        currentRole = newRole;
+        if (roleSelect) roleSelect.value = newRole;
+        if (roleSelectMob) roleSelectMob.value = newRole;
+        updateUserContext();
+    }
+
     if (roleSelect) {
-        roleSelect.addEventListener('change', (e) => {
-            currentRole = e.target.value;
-            updateUserContext();
-        });
+        roleSelect.addEventListener('change', (e) => handleRoleChange(e.target.value));
+    }
+    if (roleSelectMob) {
+        roleSelectMob.addEventListener('change', (e) => handleRoleChange(e.target.value));
     }
 
     // Search bar logic

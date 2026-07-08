@@ -451,6 +451,17 @@ a {
     color: var(--primary);
 }
 
+/* Dashboard Desktop/Mobile layouts defaults */
+.dashboard-mobile-hero {
+    display: none;
+}
+.quick-summary-section {
+    display: none;
+}
+.mobile-only-add-expense-btn {
+    display: none;
+}
+
 /* Dashboard Summary Cards Grid */
 .dashboard-grid {
     display: grid;
@@ -1743,6 +1754,7 @@ textarea.input-control {
     }
     
     .top-nav {
+        height: 64px;
         padding: 0 16px;
     }
     
@@ -1750,8 +1762,38 @@ textarea.input-control {
         display: block;
     }
     
+    .page-title-area h2 {
+        font-size: 1.15rem;
+    }
+    
+    .page-title-area p {
+        display: none !important; /* Hide description subtitle to keep top bar clean */
+    }
+    
+    .role-selector-wrap {
+        display: none !important; /* Hide switcher in header, moved to sidebar drawer */
+    }
+    
+    .sidebar-role-switcher {
+        display: block !important;
+    }
+    
+    /* Responsive Dashboard Overrides */
+    .dashboard-mobile-hero {
+        display: block !important;
+    }
+    .quick-summary-section {
+        display: block !important;
+    }
+    .mobile-only-add-expense-btn {
+        display: block !important;
+    }
+    .dashboard-grid {
+        display: none !important; /* Hide 4-card grid on mobile */
+    }
+    
     .main-content {
-        padding: 16px;
+        padding: 16px 12px;
     }
     
     .mobile-nav {
@@ -1774,46 +1816,123 @@ textarea.input-control {
         grid-template-columns: 1fr;
     }
     
-    .detail-grid {
-        grid-template-columns: 1fr;
-    }
-    
     .detail-item-full {
         grid-column: span 1;
     }
     
     .advanced-filters-panel {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr;
     }
     
     .floating-add-btn {
         bottom: 88px;
         right: 16px;
     }
+    
+    /* Horizontal Swipeable Date Badges */
+    .filter-row-badges {
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 4px;
+        width: 100%;
+        -webkit-overflow-scrolling: touch;
+        gap: 8px;
+        scrollbar-width: none; /* Hide standard Firefox scrollbar */
+    }
+    .filter-row-badges::-webkit-scrollbar {
+        display: none; /* Hide Chrome/Safari scrollbar */
+    }
+    .filter-badge {
+        flex: 0 0 auto; /* Prevent badges from squishing */
+    }
+    
+    /* Premium iOS-style Bottom Sheet Modals */
+    .detail-overlay {
+        align-items: flex-end; /* Align modals to bottom of screen */
+        padding: 0;
+    }
+    .detail-modal {
+        max-width: 100%;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        margin-bottom: 0;
+        animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .modal-body {
+        max-height: calc(85vh - 140px);
+        overflow-y: auto;
+        padding: 20px;
+    }
+    .detail-amount {
+        font-size: 2.1rem;
+    }
+    .detail-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    .modal-actions-footer {
+        padding: 16px 20px;
+        flex-direction: column; /* Stack actions on mobile */
+    }
+    .modal-actions-footer .btn {
+        width: 100%;
+    }
+    
+    /* Full width notifications card on mobile */
+    .notifications-panel {
+        width: calc(100% - 32px);
+        right: 16px;
+        left: 16px;
+        top: 72px;
+    }
+    
+    /* Vertical stacking of inline actions to prevent wrapping clutter */
+    .inline-action-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .btn-inline-secondary {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
 }
 
 @media (max-width: 480px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .summary-card {
+        padding: 16px;
+        border-radius: var(--radius-md);
+    }
+    
+    .card-value {
+        font-size: 1.5rem;
     }
     
     .analytics-cards-row {
         grid-template-columns: 1fr;
-    }
-    
-    .advanced-filters-panel {
-        grid-template-columns: 1fr;
+        gap: 16px;
     }
     
     .filter-row-top {
         flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
     }
     
     .sort-select-wrap {
         width: 100%;
-    }
-    
-    .detail-amount {
-        font-size: 2.1rem;
     }
 }

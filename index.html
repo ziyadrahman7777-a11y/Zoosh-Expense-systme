@@ -24,6 +24,19 @@
                 </div>
             </div>
 
+            <!-- Mobile-only Role Switcher in Sidebar -->
+            <div class="sidebar-role-switcher" style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); margin-bottom: 16px;">
+                <div class="role-selector-wrap" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 12px; border-radius: 20px; background-color: var(--bg-app); border: 1px solid var(--border-color);">
+                    <label for="active-role-switcher-mob" style="font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Role:</label>
+                    <select id="active-role-switcher-mob" class="role-select" style="background: transparent; border: none; font-size: 0.8rem; font-weight: 700; color: var(--primary); cursor: pointer; outline: none;">
+                        <option value="owner" selected>Owner (Full Access)</option>
+                        <option value="manager">Manager (Approve only)</option>
+                        <option value="staff">Staff (Create only)</option>
+                        <option value="accountant">Accountant (Read-only)</option>
+                    </select>
+                </div>
+            </div>
+
             <ul class="sidebar-menu">
                 <li class="menu-item active" data-view="dashboard">
                     <a href="#">
@@ -138,7 +151,83 @@
 
                 <!-- 1. DASHBOARD VIEW -->
                 <section class="view-section active" id="view-dashboard">
-                    <!-- Dashboard Cards Grid -->
+                    <!-- Mobile-friendly Main Header Card (Visible on mobile, hidden on desktop) -->
+                    <div class="dashboard-mobile-hero">
+                        <div class="summary-card main-green-card" style="background-color: var(--primary); color: white; border: none; padding: 20px; border-radius: var(--radius-lg); position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; min-height: 140px; box-shadow: 0 10px 20px rgba(11, 93, 63, 0.12); margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <span style="font-size: 0.85rem; font-weight: 700; color: rgba(255,255,255,0.85); letter-spacing: 0.05em;">Today's Expenses</span>
+                                <a href="#" onclick="switchView('expenses')" style="font-size: 0.8rem; font-weight: 700; color: white; opacity: 0.9; text-decoration: underline;">View All</a>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                                <div>
+                                    <h3 style="font-size: 2.1rem; font-weight: 800; color: white; margin: 0;" id="dash-today-expenses-val">₹0</h3>
+                                    <span style="font-size: 0.8rem; color: rgba(255,255,255,0.8); font-weight: 600;" id="dash-today-txns-count">0 Transactions</span>
+                                </div>
+                                <div style="display: flex; gap: 4px; align-items: flex-end; height: 40px; margin-bottom: 4px;">
+                                    <div style="width: 6px; height: 16px; background-color: rgba(255,255,255,0.4); border-radius: 2px;"></div>
+                                    <div style="width: 6px; height: 28px; background-color: rgba(255,255,255,0.7); border-radius: 2px;"></div>
+                                    <div style="width: 6px; height: 38px; background-color: white; border-radius: 2px;"></div>
+                                    <div style="width: 6px; height: 22px; background-color: rgba(255,255,255,0.5); border-radius: 2px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mobile-friendly Quick Summary Section (Visible on mobile, hidden on desktop) -->
+                    <div class="quick-summary-section" style="margin-bottom: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-primary); margin:0;">Quick Summary</h3>
+                            <select id="quick-summary-filter" class="select-control" style="width: auto; height: 32px; font-size: 0.75rem; border-radius: 12px; padding: 0 10px; font-weight: 700; border-color: var(--border-color); color: var(--text-secondary); outline: none; background-color: var(--bg-card);" onchange="handleQuickSummaryFilterChange(this.value)">
+                                <option value="this-month">This Month</option>
+                                <option value="today">Today</option>
+                                <option value="this-week">This Week</option>
+                            </select>
+                        </div>
+                        <div class="quick-summary-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                            <!-- Total Expenses Card -->
+                            <div class="summary-item-card" style="background-color: var(--bg-card); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 8px; position: relative;">
+                                <span style="font-size: 0.725rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Total Expenses</span>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong style="font-size: 1.15rem; font-weight: 800;" id="quick-total-val">₹0</strong>
+                                    <div style="width: 32px; height: 32px; border-radius: 50%; background-color: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                                        <i data-lucide="layers" style="width: 16px; height: 16px;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Wood & Plywood Card -->
+                            <div class="summary-item-card" style="background-color: var(--bg-card); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 8px; position: relative;">
+                                <span style="font-size: 0.725rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Wood & Plywood</span>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong style="font-size: 1.15rem; font-weight: 800;" id="quick-wood-val">₹0</strong>
+                                    <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #FDF2E9; color: #D35400; display: flex; align-items: center; justify-content: center;">
+                                        <i data-lucide="grid" style="width: 16px; height: 16px;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Salaries Card -->
+                            <div class="summary-item-card" style="background-color: var(--bg-card); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 8px; position: relative;">
+                                <span style="font-size: 0.725rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Salaries</span>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong style="font-size: 1.15rem; font-weight: 800;" id="quick-salaries-val">₹0</strong>
+                                    <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #F5EEF8; color: #8E44AD; display: flex; align-items: center; justify-content: center;">
+                                        <i data-lucide="contact-2" style="width: 16px; height: 16px;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Transport Card -->
+                            <div class="summary-item-card" style="background-color: var(--bg-card); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 8px; position: relative;">
+                                <span style="font-size: 0.725rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Transport</span>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong style="font-size: 1.15rem; font-weight: 800;" id="quick-transport-val">₹0</strong>
+                                    <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #EBF5FB; color: #2980B9; display: flex; align-items: center; justify-content: center;">
+                                        <i data-lucide="truck" style="width: 16px; height: 16px;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Cards Grid (Visible on desktop, hidden on mobile) -->
                     <div class="dashboard-grid">
                         <div class="summary-card">
                             <div class="card-header-info">
@@ -210,6 +299,11 @@
                                 </div>
                                 <div class="expense-list-container" id="recent-expenses-list">
                                     <!-- Populated dynamically -->
+                                </div>
+                                <div class="mobile-only-add-expense-btn" style="margin-top: 16px;">
+                                    <button class="btn btn-primary" style="width:100%; border-radius: 12px; padding: 14px; font-weight: 700; background-color: var(--primary); display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(11, 93, 63, 0.15);" onclick="switchView('add-expense')">
+                                        <i data-lucide="plus"></i> Add Expense
+                                    </button>
                                 </div>
                             </div>
 
@@ -614,9 +708,9 @@
             <i data-lucide="receipt"></i>
             <span>Expenses</span>
         </a>
-        <a href="#" class="mobile-nav-item" data-view="add-expense">
-            <i data-lucide="plus-circle"></i>
-            <span>Add</span>
+        <a href="#" class="mobile-nav-item" data-view="projects">
+            <i data-lucide="briefcase"></i>
+            <span>Projects</span>
         </a>
         <a href="#" class="mobile-nav-item" data-view="vendors">
             <i data-lucide="users"></i>
