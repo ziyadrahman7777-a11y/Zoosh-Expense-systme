@@ -1,0 +1,11 @@
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Workspace / IDE folders
+.vscode/
+.idea/
+
+# Local cache
+.sass-cache/
+*.log

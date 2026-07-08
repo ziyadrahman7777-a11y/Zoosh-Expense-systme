@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZOOSH Finance - Expense Management System</title>
+    <!-- Styling stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="app-shell">
+        <!-- Sidebar Layout (Desktop) -->
+        <aside class="app-sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                </div>
+                <div class="brand-info">
+                    <h1>ZOOSH Finance</h1>
+                    <span>Furnitures</span>
+                </div>
+            </div>
+
+            <ul class="sidebar-menu">
+                <li class="menu-item active" data-view="dashboard">
+                    <a href="#">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="menu-item" data-view="expenses">
+                    <a href="#">
+                        <i data-lucide="receipt"></i>
+                        <span>Expenses</span>
+                    </a>
+                </li>
+                <li class="menu-item" data-view="add-expense">
+                    <a href="#">
+                        <i data-lucide="plus-circle"></i>
+                        <span>Add Expense</span>
+                    </a>
+                </li>
+                <li class="menu-item" data-view="vendors">
+                    <a href="#">
+                        <i data-lucide="users"></i>
+                        <span>Vendors</span>
+                    </a>
+                </li>
+                <li class="menu-item" data-view="projects">
+                    <a href="#">
+                        <i data-lucide="briefcase"></i>
+                        <span>Projects</span>
+                    </a>
+                </li>
+                <li class="menu-item" data-view="reports">
+                    <a href="#">
+                        <i data-lucide="pie-chart"></i>
+                        <span>Reports & Trends</span>
+                    </a>
+                </li>
+                <li class="menu-item" id="menu-supabase-sync" style="opacity: 0.7;">
+                    <a href="#" onclick="openSupabaseModal()">
+                        <i data-lucide="cloud-lightning" style="color: #3ECF8E;"></i>
+                        <span style="color: #3ECF8E; font-weight: 700;">Supabase Sync</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-user">
+                    <div class="user-avatar">O</div>
+                    <div class="user-info">
+                        <div class="user-name">Ziyad (Owner)</div>
+                        <div class="user-role">owner</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Wrapper container -->
+        <div class="app-container">
+            <!-- Top Nav Header -->
+            <header class="top-nav">
+                <div class="top-left">
+                    <button class="mobile-menu-toggle" id="mobile-menu-toggle">
+                        <i data-lucide="menu"></i>
+                    </button>
+                    <div class="page-title-area">
+                        <h2>ZOOSH Finance</h2>
+                        <p>Expense management system for custom furniture manufacture</p>
+                    </div>
+                </div>
+
+                <div class="top-right">
+                    <!-- Interactive Role Switcher -->
+                    <div class="role-selector-wrap">
+                        <label for="active-role-switcher">Role:</label>
+                        <select id="active-role-switcher" class="role-select">
+                            <option value="owner" selected>Owner (Full Access)</option>
+                            <option value="manager">Manager (Approve only)</option>
+                            <option value="staff">Staff (Create only)</option>
+                            <option value="accountant">Accountant (Read-only)</option>
+                        </select>
+                    </div>
+
+                    <!-- Theme Toggle -->
+                    <button class="btn-icon" id="theme-toggle" title="Toggle Light/Dark mode">
+                        <i data-lucide="moon"></i>
+                    </button>
+
+                    <!-- Notifications Panel Bell -->
+                    <button class="btn-icon" id="notif-bell" title="Notifications">
+                        <i data-lucide="bell"></i>
+                        <span class="badge-dot" id="notif-count-badge" style="display:none;"></span>
+                    </button>
+
+                    <!-- User Circle Avatar -->
+                    <div class="user-avatar" style="width: 42px; height: 42px;">O</div>
+                </div>
+
+                <!-- Notifications Dropdown list -->
+                <div class="notifications-panel" id="notifications-dropdown">
+                    <div class="notif-header">
+                        <span>Notifications</span>
+                        <i data-lucide="bell-off" style="width: 16px; color:var(--text-secondary);"></i>
+                    </div>
+                    <div class="notif-body" id="notifications-list">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Views content areas -->
+            <main class="main-content">
+
+                <!-- 1. DASHBOARD VIEW -->
+                <section class="view-section active" id="view-dashboard">
+                    <!-- Dashboard Cards Grid -->
+                    <div class="dashboard-grid">
+                        <div class="summary-card">
+                            <div class="card-header-info">
+                                <span class="card-label">Today's Expenses</span>
+                                <div class="card-icon-wrap"><i data-lucide="calendar"></i></div>
+                            </div>
+                            <div>
+                                <div class="card-value" id="dash-today-expenses">₹0</div>
+                                <div class="card-trend neutral" id="dash-today-txns">0 Payments</div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-header-info">
+                                <span class="card-label">This Week Expenses</span>
+                                <div class="card-icon-wrap"><i data-lucide="trending-up"></i></div>
+                            </div>
+                            <div>
+                                <div class="card-value" id="dash-week-expenses">₹0</div>
+                                <div class="card-trend neutral">vs last week</div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-header-info">
+                                <span class="card-label">This Month Expenses</span>
+                                <div class="card-icon-wrap"><i data-lucide="layers"></i></div>
+                            </div>
+                            <div>
+                                <div class="card-value" id="dash-month-expenses">₹0</div>
+                                <div class="card-trend neutral">vs last month</div>
+                            </div>
+                        </div>
+                        <div class="summary-card" style="background-color: var(--primary); color: white;">
+                            <div class="card-header-info">
+                                <span class="card-label" style="color: rgba(255,255,255,0.8)">Outstanding Dues</span>
+                                <div class="card-icon-wrap" style="background: rgba(255,255,255,0.1); color: white;"><i data-lucide="alert-circle"></i></div>
+                            </div>
+                            <div>
+                                <div class="card-value" id="dash-supplier-outstanding">₹0</div>
+                                <div class="card-trend neutral" style="color: rgba(255,255,255,0.8)">Supplier Balances</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Two Column Dashboard Layout -->
+                    <div class="dashboard-layout">
+                        <!-- Left Main Column -->
+                        <div class="dashboard-left">
+                            
+                            <!-- Category Summaries -->
+                            <div class="card-block">
+                                <div class="block-header">
+                                    <h3 class="block-title">
+                                        <i data-lucide="grid"></i> Category Quick Summary
+                                    </h3>
+                                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Active Billing Totals</span>
+                                </div>
+                                <div class="category-summary-grid" id="category-totals-grid">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+
+                            <!-- Recent Expenses -->
+                            <div class="card-block">
+                                <div class="block-header">
+                                    <h3 class="block-title">
+                                        <i data-lucide="receipt"></i> Recent Expenses
+                                    </h3>
+                                    <button class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.8rem;" onclick="switchView('expenses')">View All</button>
+                                </div>
+                                <div class="expense-list-container" id="recent-expenses-list">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Right Sidebar Column -->
+                        <div class="dashboard-right">
+                            
+                            <!-- Financial Accounts Balance -->
+                            <div class="card-block" style="background: linear-gradient(180deg, var(--bg-card) 0%, var(--primary-light) 100%);">
+                                <div class="block-header" style="margin-bottom: 16px;">
+                                    <h3 class="block-title" style="font-size: 1rem;"><i data-lucide="wallet"></i> Accounts Balances</h3>
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:16px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom:12px;">
+                                        <div>
+                                            <span style="font-size:0.75rem; color:var(--text-secondary); display:block; font-weight:600;">Cash Available</span>
+                                            <p style="font-size:1.3rem; font-weight:800;" id="dash-cash-avail">₹0</p>
+                                        </div>
+                                        <div class="card-icon-wrap" style="background-color: var(--bg-card);"><i data-lucide="coins"></i></div>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom:12px;">
+                                        <div>
+                                            <span style="font-size:0.75rem; color:var(--text-secondary); display:block; font-weight:600;">Bank Balance</span>
+                                            <p style="font-size:1.3rem; font-weight:800;" id="dash-bank-bal">₹0</p>
+                                        </div>
+                                        <div class="card-icon-wrap" style="background-color: var(--bg-card);"><i data-lucide="landmark"></i></div>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom:12px;">
+                                        <div>
+                                            <span style="font-size:0.75rem; color:var(--text-secondary); display:block; font-weight:600;">Pending Approvals</span>
+                                            <p style="font-size:1.3rem; font-weight:800; color:var(--warning);" id="dash-pending-payments">₹0</p>
+                                        </div>
+                                        <div class="card-icon-wrap" style="background-color: var(--bg-card); color:var(--warning);"><i data-lucide="clock"></i></div>
+                                    </div>
+                                    <button class="btn btn-secondary btn-full" style="font-size: 0.8rem; padding: 8px 12px; height: 38px;" onclick="openAddIncomeModal()">
+                                        <i data-lucide="plus"></i> Add Income / Capital
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Projects Budgets tracking card -->
+                            <div class="card-block">
+                                <div class="block-header" style="margin-bottom: 16px;">
+                                    <h3 class="block-title" style="font-size: 1rem;"><i data-lucide="briefcase"></i> Project Budgets</h3>
+                                    <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="switchView('projects')">All</button>
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:16px;" id="projects-mini-list">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. EXPENSES LIST VIEW -->
+                <section class="view-section" id="view-expenses">
+                    <div class="filter-bar">
+                        <div class="filter-row-top">
+                            <div class="search-input-wrap">
+                                <i data-lucide="search"></i>
+                                <input type="text" placeholder="Global search vendors, projects, bill numbers, IDs..." id="global-search" class="search-field">
+                            </div>
+                            <div class="sort-select-wrap">
+                                <select id="sort-expenses" class="select-control">
+                                    <option value="newest">Newest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                    <option value="highest">Highest Amount</option>
+                                    <option value="lowest">Lowest Amount</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Date Quick Filter badges -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; width: 100%;">
+                            <div class="filter-row-badges">
+                                <button class="filter-badge" data-date="all">All Dates</button>
+                                <button class="filter-badge" data-date="today">Today</button>
+                                <button class="filter-badge" data-date="yesterday">Yesterday</button>
+                                <button class="filter-badge" data-date="this-week">This Week</button>
+                                <button class="filter-badge active" data-date="this-month">This Month</button>
+                            </div>
+
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="exportExpensesPDF()">
+                                    <i data-lucide="file-text" style="width: 16px; height: 16px; color: var(--primary);"></i> Export PDF Report
+                                </button>
+                                <button class="advanced-filters-btn" id="toggle-adv-filters">
+                                    Show Advanced Filters <i data-lucide="chevron-down" style="width:16px;"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Expanded advanced filters panel -->
+                        <div class="advanced-filters-panel" id="advanced-filters-panel">
+                            <div class="form-group-filter">
+                                <label for="filter-vendor">Vendor</label>
+                                <select id="filter-vendor" class="select-control">
+                                    <option value="all">All Vendors</option>
+                                </select>
+                            </div>
+                            <div class="form-group-filter">
+                                <label for="filter-category">Category</label>
+                                <select id="filter-category" class="select-control">
+                                    <option value="all">All Categories</option>
+                                    <option value="Wood">Wood</option>
+                                    <option value="Plywood">Plywood</option>
+                                    <option value="Hardware">Hardware</option>
+                                    <option value="Upholstery">Upholstery</option>
+                                    <option value="Transport">Transport</option>
+                                    <option value="Salary">Salary</option>
+                                    <option value="Tools">Tools</option>
+                                    <option value="Electricity">Electricity</option>
+                                    <option value="Office">Office</option>
+                                </select>
+                            </div>
+                            <div class="form-group-filter">
+                                <label for="filter-project">Project</label>
+                                <select id="filter-project" class="select-control">
+                                    <option value="all">All Projects</option>
+                                </select>
+                            </div>
+                            <div class="form-group-filter">
+                                <label for="filter-payment">Payment Method</label>
+                                <select id="filter-payment" class="select-control">
+                                    <option value="all">All Methods</option>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank">Bank Transfer</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="Cheque">Cheque</option>
+                                    <option value="Credit">Credit Card</option>
+                                </select>
+                            </div>
+                            <div class="form-group-filter">
+                                <label for="filter-status">Status</label>
+                                <select id="filter-status" class="select-control">
+                                    <option value="all">All Statuses</option>
+                                    <option value="Pending">Pending Review</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Paid">Paid</option>
+                                    <option value="Rejected">Rejected</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expenses List output -->
+                    <div class="expense-list-container" id="expense-items-list">
+                        <!-- Populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- 3. ADD EXPENSE SCREEN -->
+                <section class="view-section" id="view-add-expense">
+                    <div class="card-block" style="max-width: 800px; margin: 0 auto;">
+                        <div class="block-header" style="border-bottom: 1px solid var(--border-color); padding-bottom:16px;">
+                            <h3 class="block-title"><i data-lucide="plus-circle"></i> Add New Expense</h3>
+                            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">ZOOSH Furnitures</span>
+                        </div>
+                        
+                        <form id="expense-entry-form" style="margin-top: 24px;">
+                            <input type="hidden" id="exp-id" value="">
+
+                            <!-- Amount Group -->
+                            <div class="form-group amount-group">
+                                <label class="form-label" style="color:var(--primary); font-size:0.9rem;">Expense Amount <span>*</span></label>
+                                <div class="amount-input-container">
+                                    <span class="currency-symbol">₹</span>
+                                    <input type="number" id="exp-amount" placeholder="0" class="amount-field" required min="1">
+                                </div>
+                            </div>
+
+                            <div class="form-grid">
+                                <!-- Vendor Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="exp-vendor">Vendor / Supplier <span>*</span></label>
+                                    <div class="inline-action-group">
+                                        <select id="exp-vendor" class="select-control" required style="flex:1;">
+                                            <option value="">Select Vendor</option>
+                                        </select>
+                                        <button type="button" class="btn-inline-secondary" onclick="handleCreateCustomVendor()">
+                                            <i data-lucide="plus"></i> New Vendor
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Expense Category Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="exp-category">Expense Category <span>*</span></label>
+                                    <div class="inline-action-group">
+                                        <select id="exp-category" class="select-control" required style="flex:1;">
+                                            <option value="">Select Category</option>
+                                        </select>
+                                        <button type="button" class="btn-inline-secondary" onclick="handleCreateCustomCategory()">
+                                            <i data-lucide="plus"></i> New Cat
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Project Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="exp-project">Project Integration</label>
+                                    <select id="exp-project" class="select-control">
+                                        <option value="">Select Project (Optional)</option>
+                                    </select>
+                                </div>
+
+                                <!-- Payment Method Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="exp-payment">Payment Method <span>*</span></label>
+                                    <select id="exp-payment" class="select-control" required>
+                                        <option value="">Select Payment Method</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Bank">Bank Transfer</option>
+                                        <option value="UPI">UPI</option>
+                                        <option value="Cheque">Cheque</option>
+                                        <option value="Credit">Credit Card</option>
+                                    </select>
+                                </div>
+
+                                <!-- Date & Time Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="exp-date">Date & Time</label>
+                                    <input type="datetime-local" id="exp-date" class="input-control">
+                                </div>
+
+                                <!-- Transaction Ref Field -->
+                                <div class="form-group">
+                                    <label class="form-label" for="exp-txn-number">Transaction / Bill Reference ID</label>
+                                    <input type="text" id="exp-txn-number" class="input-control" placeholder="TXNxxxxx or Bill number">
+                                </div>
+
+                                <!-- Description Field -->
+                                <div class="form-group form-grid-full">
+                                    <label class="form-label" for="exp-description">Description / Notes</label>
+                                    <textarea id="exp-description" class="input-control" placeholder="Add invoice notes or itemized list details..."></textarea>
+                                </div>
+
+                                <!-- Bill OCR Upload area -->
+                                <div class="form-group form-grid-full">
+                                    <label class="form-label"><i data-lucide="scan-line" style="width:16px;"></i> Bill Upload & OCR Scanning</label>
+                                    <div class="upload-drag-area" id="ocr-drop-area">
+                                        <div class="upload-icon">
+                                            <i data-lucide="upload-cloud"></i>
+                                        </div>
+                                        <p style="font-weight: 700; font-size: 0.95rem;">Drag & drop your bill here, or browse files</p>
+                                        <p style="font-size: 0.75rem; color: var(--text-secondary);">Supports PDF, JPG, PNG (Auto-fills Vendor, GST, and Total amount)</p>
+                                    </div>
+                                </div>
+
+                                <!-- Voice Notes recording -->
+                                <div class="form-group form-grid-full">
+                                    <label class="form-label"><i data-lucide="mic" style="width:16px;"></i> Optional Voice Memo</label>
+                                    <div class="voice-recorder-wrap">
+                                        <button type="button" class="record-btn" id="voice-rec-btn" onclick="toggleVoiceRecording()">
+                                            <i data-lucide="mic"></i>
+                                        </button>
+                                        <div class="voice-status-info" id="voice-status">Click mic to record details (Audio memo)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="button-row" style="margin-top: 32px;">
+                                <button type="button" class="btn btn-secondary" onclick="switchView('expenses')">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Save Expense Receipt</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- 4. VENDORS VIEW -->
+                <section class="view-section" id="view-vendors">
+                    <div class="block-header" style="margin-bottom: 24px;">
+                        <h3 class="block-title"><i data-lucide="users"></i> Supplier & Vendor Directory</h3>
+                        <div style="display:flex; gap:12px;">
+                            <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="exportVendorsPDF()">
+                                <i data-lucide="file-text" style="width: 16px; height: 16px; color: var(--primary);"></i> Export PDF
+                            </button>
+                            <button class="btn btn-primary" onclick="handleCreateCustomVendor()"><i data-lucide="plus"></i> Create Vendor</button>
+                        </div>
+                    </div>
+                    <div class="cards-list-grid" id="vendors-cards-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- 5. PROJECTS VIEW -->
+                <section class="view-section" id="view-projects">
+                    <div class="block-header" style="margin-bottom: 24px;">
+                        <h3 class="block-title"><i data-lucide="briefcase"></i> Project Progress & Budgets</h3>
+                        <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="exportProjectsPDF()">
+                            <i data-lucide="file-text" style="width: 16px; height: 16px; color: var(--primary);"></i> Export PDF
+                        </button>
+                    </div>
+                    <div class="cards-list-grid" id="projects-cards-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- 6. ANALYTICS & REPORTS VIEW -->
+                <section class="view-section" id="view-reports">
+                    <!-- Report Metrics -->
+                    <div class="analytics-cards-row">
+                        <div class="summary-card">
+                            <div class="card-header-info">
+                                <span class="card-label">Total Expenses</span>
+                                <div class="card-icon-wrap"><i data-lucide="layers"></i></div>
+                            </div>
+                            <div class="card-value" id="rep-total-expenses">₹0</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-header-info">
+                                <span class="card-label">Daily Average</span>
+                                <div class="card-icon-wrap"><i data-lucide="bar-chart-2"></i></div>
+                            </div>
+                            <div class="card-value" id="rep-avg-daily">₹0</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-header-info">
+                                <span class="card-label">Highest Expense</span>
+                                <div class="card-icon-wrap"><i data-lucide="arrow-up-right"></i></div>
+                            </div>
+                            <div class="card-value" id="rep-highest-expense">₹0</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-header-info">
+                                <span class="card-label">Lowest Expense</span>
+                                <div class="card-icon-wrap"><i data-lucide="arrow-down-left"></i></div>
+                            </div>
+                            <div class="card-value" id="rep-lowest-expense">₹0</div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid area -->
+                    <div class="charts-grid-wrapper" style="margin-bottom: 32px;">
+                        <div class="card-block">
+                            <h3 class="block-title" style="margin-bottom: 20px;"><i data-lucide="pie-chart"></i> Expenses by Category</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-category"></canvas>
+                            </div>
+                        </div>
+                        <div class="card-block">
+                            <h3 class="block-title" style="margin-bottom: 20px;"><i data-lucide="bar-chart"></i> Monthly Expense Totals</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-monthly"></canvas>
+                            </div>
+                        </div>
+                        <div class="card-block" style="grid-column: span 2;">
+                            <h3 class="block-title" style="margin-bottom: 20px;"><i data-lucide="trending-up"></i> Daily Spending (Last 10 Days)</h3>
+                            <div class="chart-wrapper" style="height: 320px;">
+                                <canvas id="chart-trend"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Tables Grid -->
+                    <div class="charts-grid-wrapper">
+                        <div class="card-block">
+                            <h3 class="block-title" style="margin-bottom: 16px;"><i data-lucide="grid"></i> Top Categories</h3>
+                            <div id="top-categories-list"></div>
+                        </div>
+                        <div class="card-block">
+                            <h3 class="block-title" style="margin-bottom: 16px;"><i data-lucide="briefcase"></i> Top Projects (Budget Used)</h3>
+                            <div id="top-projects-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Export Actions Panel -->
+                    <div class="card-block" style="text-align: center; margin-top:32px;">
+                        <h3 class="block-title" style="justify-content:center; margin-bottom:16px;">Export Expense Registry</h3>
+                        <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+                            <button class="btn btn-secondary" onclick="exportReport('excel')">
+                                <i data-lucide="sheet"></i> Export to Excel (.xls)
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportReport('csv')">
+                                <i data-lucide="file-spreadsheet"></i> Export to CSV (.csv)
+                            </button>
+                            <button class="btn btn-primary" onclick="exportReport('pdf')">
+                                <i data-lucide="file-text"></i> Export Report to PDF
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Floating Action Button for adding expense -->
+    <button class="floating-add-btn" onclick="switchView('add-expense')" id="floating-add-btn" title="Add Expense">
+        <i data-lucide="plus"></i>
+    </button>
+
+    <!-- Bottom Navigation Bar (Mobile only) -->
+    <nav class="mobile-nav">
+        <a href="#" class="mobile-nav-item active" data-view="dashboard">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Home</span>
+        </a>
+        <a href="#" class="mobile-nav-item" data-view="expenses">
+            <i data-lucide="receipt"></i>
+            <span>Expenses</span>
+        </a>
+        <a href="#" class="mobile-nav-item" data-view="add-expense">
+            <i data-lucide="plus-circle"></i>
+            <span>Add</span>
+        </a>
+        <a href="#" class="mobile-nav-item" data-view="vendors">
+            <i data-lucide="users"></i>
+            <span>Vendors</span>
+        </a>
+        <a href="#" class="mobile-nav-item" data-view="reports">
+            <i data-lucide="pie-chart"></i>
+            <span>Reports</span>
+        </a>
+    </nav>
+
+    <!-- Expense Details Modal Overlay Dialog -->
+    <div class="detail-overlay" id="detail-modal-overlay">
+        <div class="detail-modal">
+            <div class="modal-header">
+                <div class="modal-header-left" style="display:flex; align-items:center; gap:16px;">
+                    <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:700;">Expense ID: <span id="det-expense-num">EXP-xxx</span></span>
+                    <button class="btn btn-secondary" style="padding: 0 10px; font-size: 0.725rem; height: 26px; display:flex; align-items:center; gap:4px; border-radius: 12px; font-weight: 700;" onclick="exportSingleExpensePDF(selectedExpenseIdForModal)">
+                        <i data-lucide="file-text" style="width: 12px; height: 12px; color: var(--primary);"></i> Export PDF
+                    </button>
+                </div>
+                <button class="modal-close-btn" onclick="closeDetailModal()"><i data-lucide="x"></i></button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="detail-amount-sec">
+                    <div class="detail-amount" id="det-amount">₹0</div>
+                    <span id="det-status-badge" class="badge pending">Pending</span>
+                </div>
+
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <h5>Vendor / Supplier</h5>
+                        <p id="det-vendor">Malabar Woods</p>
+                    </div>
+                    <div class="detail-item">
+                        <h5>Category</h5>
+                        <p id="det-category">Wood & Plywood</p>
+                    </div>
+                    <div class="detail-item">
+                        <h5>Project Location</h5>
+                        <p id="det-project">Villa Project - Palakkad</p>
+                    </div>
+                    <div class="detail-item">
+                        <h5>Payment Method</h5>
+                        <p id="det-payment-method">Bank Transfer</p>
+                    </div>
+                    <div class="detail-item">
+                        <h5>Transaction Ref / ID</h5>
+                        <p id="det-transaction-id">N/A</p>
+                    </div>
+                    <div class="detail-item">
+                        <h5>Date & Time</h5>
+                        <p id="det-date">Jul 8, 2026, 11:00 AM</p>
+                    </div>
+                    <div class="detail-item">
+                        <h5>Created By</h5>
+                        <p id="det-created-by">Rahim (Staff)</p>
+                    </div>
+                    <div class="detail-item">
+                        <h5>Approved By</h5>
+                        <p id="det-approved-by">N/A</p>
+                    </div>
+                    <div class="detail-item detail-item-full">
+                        <h5>Description / Notes</h5>
+                        <p id="det-description" style="font-weight: 500; font-size: 0.875rem; color: var(--text-secondary);">First grade teak logs.</p>
+                    </div>
+                    <div class="detail-item detail-item-full">
+                        <h5>Attached Bills & Vouchers</h5>
+                        <div class="attachments-list" id="det-bills-list">
+                            <!-- Filled dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Approval Workflow Nodes Tracker -->
+                <div class="approval-timeline">
+                    <h5 class="timeline-title">Approval Flow Track</h5>
+                    <div class="timeline-steps" id="approval-timeline-steps">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions-footer" id="modal-workflow-actions">
+                <!-- Action buttons changed according to roles permissions -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase Config Modal Dialog -->
+    <div class="detail-overlay" id="supabase-modal-overlay" style="display:none; justify-content:center; align-items:center; z-index:9999;">
+        <div class="detail-modal" style="max-width: 480px; width: 90%; background-color: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 16px 20px;">
+                <div class="modal-header-left" style="display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="cloud-lightning" style="color: #3ECF8E; width: 20px; height: 20px;"></i>
+                    <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--primary);">Supabase Integration</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeSupabaseModal()" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i data-lucide="x"></i></button>
+            </div>
+            
+            <div class="modal-body" style="padding: 20px;">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; margin-top: 0;">
+                    Connect your ZOOSH Finance workspace to a Supabase database. Retrieve your credentials from your <strong>Supabase Dashboard > Project Settings > API</strong>.
+                </p>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label" style="font-weight: 700; margin-bottom:6px; display:block;">Supabase Project URL</label>
+                    <input type="text" id="supabase-url-input" class="form-control" placeholder="https://your-project-id.supabase.co" style="width: 100%; box-sizing: border-box;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label class="form-label" style="font-weight: 700; margin-bottom:6px; display:block;">Supabase Anon API Key</label>
+                    <input type="password" id="supabase-key-input" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." style="width: 100%; box-sizing: border-box;">
+                </div>
+
+                <div id="supabase-conn-status" style="margin-bottom: 20px; padding: 12px; border-radius: 8px; font-size: 0.8rem; display: none; text-align: center; font-weight: bold;">
+                </div>
+
+                <div class="button-row" style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeSupabaseModal()">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="supabase-connect-btn" onclick="saveSupabaseSettings()" style="background-color: #3ECF8E; border-color: #3ECF8E; color: #111;">Connect & Sync</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Library Scripts -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Main JS logic script -->
+    <script src="app.js"></script>
+</body>
+</html>
