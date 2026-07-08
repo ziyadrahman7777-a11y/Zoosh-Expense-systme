@@ -595,9 +595,12 @@
                 <section class="view-section" id="view-projects">
                     <div class="block-header" style="margin-bottom: 24px;">
                         <h3 class="block-title"><i data-lucide="briefcase"></i> Project Progress & Budgets</h3>
-                        <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="exportProjectsPDF()">
-                            <i data-lucide="file-text" style="width: 16px; height: 16px; color: var(--primary);"></i> Export PDF
-                        </button>
+                        <div style="display:flex; gap:12px;">
+                            <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="exportProjectsPDF()">
+                                <i data-lucide="file-text" style="width: 16px; height: 16px; color: var(--primary);"></i> Export PDF
+                            </button>
+                            <button class="btn btn-primary" onclick="handleCreateCustomProject()"><i data-lucide="plus"></i> Create Project</button>
+                        </div>
                     </div>
                     <div class="cards-list-grid" id="projects-cards-grid">
                         <!-- Populated dynamically -->

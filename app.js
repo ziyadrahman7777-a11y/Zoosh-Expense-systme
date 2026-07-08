@@ -1399,6 +1399,42 @@ function handleCreateCustomVendor() {
     alert('Vendor created successfully!');
 }
 
+function handleCreateCustomProject() {
+    const name = prompt('Enter Project / Site Name (e.g. Villa Project - Palakkad):');
+    if (!name || !name.trim()) return;
+    const client = prompt('Enter Client Name / Reference (e.g. Palakkad):');
+    if (!client || !client.trim()) return;
+    const budgetStr = prompt('Enter Total Allocated Budget (₹):') || '0';
+    const budget = Number(budgetStr);
+    
+    if (isNaN(budget) || budget < 0) {
+        alert('Invalid budget amount.');
+        return;
+    }
+
+    const projects = db.getProjects();
+    const newProj = {
+        id: 'prj-' + (projects.length + 1),
+        name: name.trim(),
+        client: client.trim(),
+        budget: budget,
+        spent: 0
+    };
+
+    projects.push(newProj);
+    db.setData('zoosh_projects', projects);
+    if (typeof pushToSupabase === 'function') {
+        pushToSupabase('projects', newProj);
+    }
+    populateSelectDropdowns();
+    
+    if (activeView === 'projects') {
+        renderProjectsList();
+    }
+    
+    alert('Project created successfully!');
+}
+
 // ----------------------------------------------------
 // OCR BILL AUTOMATIC AUTO-FILL SIMULATION
 // ----------------------------------------------------
