@@ -1158,41 +1158,16 @@ function viewExpenseDetail(expenseId) {
     const actionContainer = document.getElementById('modal-workflow-actions');
     actionContainer.innerHTML = '';
 
-    // Action permission buttons logic
     const isOwner = currentRole === 'owner';
-    const isManager = currentRole === 'manager';
-    const isStaff = currentRole === 'staff';
 
     // Duplicate & edit buttons visible for creator or manager/owner
     if (currentRole !== 'accountant') {
         actionContainer.innerHTML += `<button class="btn btn-secondary" onclick="duplicateExpenseAction('${exp.id}')"><i data-lucide="copy" style="width:16px;"></i> Duplicate</button>`;
-        
-        if (exp.status === 'Pending') {
-            actionContainer.innerHTML += `<button class="btn btn-secondary" onclick="editExpenseAction('${exp.id}')"><i data-lucide="edit" style="width:16px;"></i> Edit</button>`;
-        }
+        actionContainer.innerHTML += `<button class="btn btn-secondary" onclick="editExpenseAction('${exp.id}')"><i data-lucide="edit" style="width:16px;"></i> Edit</button>`;
     }
 
-    // Workflow approvals actions: Manager reviews, Owner final approvals
-    if (exp.status === 'Pending') {
-        if (isManager || isOwner) {
-            actionContainer.innerHTML += `
-                <button class="btn btn-primary" onclick="changeStatusAction('${exp.id}', 'Approved')">Approve (Review)</button>
-                <button class="btn btn-danger" onclick="changeStatusAction('${exp.id}', 'Rejected')">Reject</button>
-            `;
-        }
-    } else if (exp.status === 'Approved') {
-        if (isOwner) {
-            actionContainer.innerHTML += `
-                <button class="btn btn-primary" onclick="changeStatusAction('${exp.id}', 'Paid')">Mark Paid (Finalize)</button>
-                <button class="btn btn-danger" onclick="changeStatusAction('${exp.id}', 'Rejected')">Reject</button>
-            `;
-        } else if (isManager) {
-            actionContainer.innerHTML += `<p style="font-size: 0.75rem; color: var(--text-muted); font-weight:700;">Awaiting Owner Finalization</p>`;
-        }
-    }
-
-    // Delete Expense action
-    if (isOwner && exp.status !== 'Paid') {
+    // Delete Expense action (Owners can delete any expense)
+    if (isOwner) {
         actionContainer.innerHTML += `<button class="btn btn-danger" style="margin-left:auto;" onclick="deleteExpenseAction('${exp.id}')"><i data-lucide="trash-2" style="width:16px;"></i> Delete</button>`;
     }
 
@@ -1384,7 +1359,7 @@ async function saveExpenseForm(event) {
         description,
         createdBy: expId ? (db.getExpenses().find(e => e.id === expId)?.createdBy || currentUser.id) : currentUser.id,
         approvedBy: '',
-        status: 'Pending',
+        status: 'Paid',
         attachments: [{ name: 'attached_bill.pdf', size: '1.4 MB' }],
         createdAt,
         updatedAt: new Date().toISOString()
