@@ -1,6 +1,17 @@
--- SQL Migration: Add Incomes and Transfers Tables for ZOOSH Finance
+-- SQL Migration: Add Incomes and Transfers Tables & Cleanup Constraints for ZOOSH Finance
 
--- 1. Create Incomes Table
+-- ========================================================
+-- 1. Drop foreign key constraints on expenses to prevent sync failures
+-- ========================================================
+ALTER TABLE public.expenses DROP CONSTRAINT IF EXISTS expenses_vendor_id_fkey;
+ALTER TABLE public.expenses DROP CONSTRAINT IF EXISTS expenses_project_id_fkey;
+ALTER TABLE public.expenses DROP CONSTRAINT IF EXISTS expenses_created_by_fkey;
+ALTER TABLE public.expenses DROP CONSTRAINT IF EXISTS expenses_approved_by_fkey;
+
+
+-- ========================================================
+-- 2. Create Incomes Table
+-- ========================================================
 CREATE TABLE IF NOT EXISTS public.incomes (
     id TEXT PRIMARY KEY,
     amount NUMERIC NOT NULL CHECK (amount > 0),
@@ -15,20 +26,15 @@ CREATE TABLE IF NOT EXISTS public.incomes (
 ALTER TABLE public.incomes ENABLE ROW LEVEL SECURITY;
 
 -- Create Policies for public.incomes
-CREATE POLICY "Allow public read access to incomes" ON public.incomes
-    FOR SELECT TO anon, authenticated USING (true);
-
-CREATE POLICY "Allow public write access to incomes" ON public.incomes
-    FOR INSERT TO anon, authenticated WITH CHECK (true);
-
-CREATE POLICY "Allow public update access to incomes" ON public.incomes
-    FOR UPDATE TO anon, authenticated USING (true);
-
-CREATE POLICY "Allow public delete access to incomes" ON public.incomes
-    FOR DELETE TO anon, authenticated USING (true);
+CREATE POLICY "Allow public read access to incomes" ON public.incomes FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Allow public write access to incomes" ON public.incomes FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Allow public update access to incomes" ON public.incomes FOR UPDATE TO anon, authenticated USING (true);
+CREATE POLICY "Allow public delete access to incomes" ON public.incomes FOR DELETE TO anon, authenticated USING (true);
 
 
--- 2. Create Transfers Table
+-- ========================================================
+-- 3. Create Transfers Table
+-- ========================================================
 CREATE TABLE IF NOT EXISTS public.transfers (
     id TEXT PRIMARY KEY,
     from_account TEXT NOT NULL,
@@ -44,20 +50,29 @@ CREATE TABLE IF NOT EXISTS public.transfers (
 ALTER TABLE public.transfers ENABLE ROW LEVEL SECURITY;
 
 -- Create Policies for public.transfers
-CREATE POLICY "Allow public read access to transfers" ON public.transfers
-    FOR SELECT TO anon, authenticated USING (true);
-
-CREATE POLICY "Allow public write access to transfers" ON public.transfers
-    FOR INSERT TO anon, authenticated WITH CHECK (true);
-
-CREATE POLICY "Allow public update access to transfers" ON public.transfers
-    FOR UPDATE TO anon, authenticated USING (true);
-
-CREATE POLICY "Allow public delete access to transfers" ON public.transfers
-    FOR DELETE TO anon, authenticated USING (true);
+CREATE POLICY "Allow public read access to transfers" ON public.transfers FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Allow public write access to transfers" ON public.transfers FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Allow public update access to transfers" ON public.transfers FOR UPDATE TO anon, authenticated USING (true);
+CREATE POLICY "Allow public delete access to transfers" ON public.transfers FOR DELETE TO anon, authenticated USING (true);
 
 
--- 3. Create indices for query performance
+-- ========================================================
+-- 4. Enable Supabase Realtime for instant multi-user sync
+-- ========================================================
+-- Drop table from publication first if it already exists to prevent duplicate publication errors
+ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.expenses;
+ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.incomes;
+ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.transfers;
+
+-- Add tables to the realtime publication
+ALTER PUBLICATION supabase_realtime ADD TABLE public.expenses;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.incomes;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.transfers;
+
+
+-- ========================================================
+-- 5. Create indices for query performance
+-- ========================================================
 CREATE INDEX IF NOT EXISTS idx_incomes_bank_account ON public.incomes(bank_account);
 CREATE INDEX IF NOT EXISTS idx_transfers_from_account ON public.transfers(from_account);
 CREATE INDEX IF NOT EXISTS idx_transfers_to_account ON public.transfers(to_account);

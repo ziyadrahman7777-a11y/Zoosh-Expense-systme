@@ -3173,20 +3173,17 @@ function closeSupabaseModal() {
 }
 
 function initSupabase() {
-    // Automatically set up credentials provided by the user
-    if (!localStorage.getItem('supabase_url')) {
-        localStorage.setItem('supabase_url', 'https://bxqqwvlxcnoktctobxwk.supabase.co');
-    }
-    if (!localStorage.getItem('supabase_key')) {
-        localStorage.setItem('supabase_key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4cXF3dmx4Y25va3RjdG9ieHdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MDAwMzIsImV4cCI6MjA5OTA3NjAzMn0.Q1oBnhaP8_z6yczBv6sIyb8mPRBeb3BQUclbncq2xM8');
-    }
+    // Automatically enforce and overwrite the shared project credentials on startup
+    const targetUrl = 'https://bxqqwvlxcnoktctobxwk.supabase.co';
+    const targetKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4cXF3dmx4Y25va3RjdG9ieHdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MDAwMzIsImV4cCI6MjA5OTA3NjAzMn0.Q1oBnhaP8_z6yczBv6sIyb8mPRBeb3BQUclbncq2xM8';
+    
+    localStorage.setItem('supabase_url', targetUrl);
+    localStorage.setItem('supabase_key', targetKey);
 
-    const url = localStorage.getItem('supabase_url');
-    const key = localStorage.getItem('supabase_key');
     const syncBadge = document.getElementById('menu-supabase-sync');
-    if (url && key && typeof supabase !== 'undefined') {
+    if (typeof supabase !== 'undefined') {
         try {
-            supabaseClient = supabase.createClient(url, key);
+            supabaseClient = supabase.createClient(targetUrl, targetKey);
             if (syncBadge) {
                 syncBadge.querySelector('i').setAttribute('data-lucide', 'cloud');
                 syncBadge.querySelector('span').textContent = 'Cloud Active';
@@ -3195,9 +3192,34 @@ function initSupabase() {
             }
             // Asynchronously fetch the latest database updates
             pullFromSupabase();
+            // Start real-time listening
+            setupRealtimeSubscriptions();
         } catch (e) {
             console.error("Failed to init Supabase client:", e);
         }
+    }
+}
+
+function setupRealtimeSubscriptions() {
+    if (!supabaseClient) return;
+    try {
+        supabaseClient
+            .channel('zoosh-realtime-sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, (payload) => {
+                console.log('Real-time database update detected in expenses table:', payload);
+                pullFromSupabase();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'incomes' }, (payload) => {
+                console.log('Real-time database update detected in incomes table:', payload);
+                pullFromSupabase();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'transfers' }, (payload) => {
+                console.log('Real-time database update detected in transfers table:', payload);
+                pullFromSupabase();
+            })
+            .subscribe();
+    } catch (err) {
+        console.error("Error setting up Real-time subscriptions:", err);
     }
 }
 
