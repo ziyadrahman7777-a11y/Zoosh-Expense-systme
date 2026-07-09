@@ -57,17 +57,26 @@ CREATE POLICY "Allow public delete access to transfers" ON public.transfers FOR 
 
 
 -- ========================================================
--- 4. Enable Supabase Realtime for instant multi-user sync
+-- 4. Enable Supabase Realtime safely for all tables
 -- ========================================================
--- Drop table from publication first if it already exists to prevent duplicate publication errors
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.expenses;
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.incomes;
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.transfers;
-
--- Add tables to the realtime publication
-ALTER PUBLICATION supabase_realtime ADD TABLE public.expenses;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.incomes;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.transfers;
+DO $$
+BEGIN
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.expenses;
+    EXCEPTION WHEN duplicate_object THEN
+        -- Already exists, ignore
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.incomes;
+    EXCEPTION WHEN duplicate_object THEN
+        -- Already exists, ignore
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.transfers;
+    EXCEPTION WHEN duplicate_object THEN
+        -- Already exists, ignore
+    END;
+END $$;
 
 
 -- ========================================================
