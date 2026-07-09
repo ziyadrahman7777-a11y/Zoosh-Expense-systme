@@ -872,7 +872,28 @@ function getFilteredTransfers() {
 }
 
 function renderQuickSummary(filteredExpenses) {
-    const activeList = filteredExpenses.filter(e => e.status !== 'Rejected' && e.status !== 'Cancelled');
+    let activeList;
+    if (filteredExpenses) {
+        activeList = filteredExpenses.filter(e => e.status !== 'Rejected' && e.status !== 'Cancelled');
+    } else {
+        const expenses = db.getExpenses();
+        let temp = expenses.filter(e => e.status !== 'Rejected' && e.status !== 'Cancelled');
+        
+        const todayStr = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const startOfWeek = new Date();
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        if (quickSummaryFilterValue === 'today') {
+            temp = temp.filter(e => e.createdAt.startsWith(todayStr));
+        } else if (quickSummaryFilterValue === 'this-week') {
+            temp = temp.filter(e => new Date(e.createdAt) >= startOfWeek);
+        } else if (quickSummaryFilterValue === 'this-month') {
+            temp = temp.filter(e => new Date(e.createdAt) >= startOfMonth);
+        }
+        activeList = temp;
+    }
     
     // Calculations
     const totalExpensesSum = activeList.reduce((sum, e) => sum + Number(e.amount), 0);
