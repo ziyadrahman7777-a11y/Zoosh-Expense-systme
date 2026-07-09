@@ -46,6 +46,7 @@ create table public.expenses (
     description text,
     tax numeric default 0 not null,
     payment_method text not null,
+    bank_account text,
     status text not null check (status in ('Pending', 'Approved', 'Rejected', 'Paid', 'Cancelled')),
     created_by text,
     approved_by text,

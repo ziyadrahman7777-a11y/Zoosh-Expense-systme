@@ -8,6 +8,9 @@ ALTER TABLE public.expenses DROP CONSTRAINT IF EXISTS expenses_project_id_fkey;
 ALTER TABLE public.expenses DROP CONSTRAINT IF EXISTS expenses_created_by_fkey;
 ALTER TABLE public.expenses DROP CONSTRAINT IF EXISTS expenses_approved_by_fkey;
 
+-- Add bank_account column to expenses if it does not exist
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS bank_account text;
+
 
 -- ========================================================
 -- 2. Create Incomes Table

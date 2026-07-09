@@ -154,7 +154,10 @@ class Database {
     getNotifications() { return this.getData('zoosh_notifications'); }
     getCustomCategories() { return this.getData('zoosh_custom_categories'); }
 
-    saveIncome(income) {
+    async saveIncome(income) {
+        if (typeof pushToSupabase === 'function') {
+            await pushToSupabase('incomes', income);
+        }
         const incomes = this.getIncomes();
         const index = incomes.findIndex(i => i.id === income.id);
         if (index > -1) {
@@ -163,21 +166,21 @@ class Database {
             incomes.unshift(income);
         }
         this.setData('zoosh_incomes', incomes);
-        if (typeof pushToSupabase === 'function') {
-            pushToSupabase('incomes', income);
-        }
     }
 
-    deleteIncome(id) {
+    async deleteIncome(id) {
+        if (typeof deleteFromSupabase === 'function') {
+            await deleteFromSupabase('incomes', id);
+        }
         let incomes = this.getIncomes();
         incomes = incomes.filter(i => i.id !== id);
         this.setData('zoosh_incomes', incomes);
-        if (typeof deleteFromSupabase === 'function') {
-            deleteFromSupabase('incomes', id);
-        }
     }
 
-    saveTransfer(transfer) {
+    async saveTransfer(transfer) {
+        if (typeof pushToSupabase === 'function') {
+            await pushToSupabase('transfers', transfer);
+        }
         const transfers = this.getTransfers();
         const index = transfers.findIndex(t => t.id === transfer.id);
         if (index > -1) {
@@ -186,21 +189,21 @@ class Database {
             transfers.unshift(transfer);
         }
         this.setData('zoosh_transfers', transfers);
-        if (typeof pushToSupabase === 'function') {
-            pushToSupabase('transfers', transfer);
-        }
     }
 
-    deleteTransfer(id) {
+    async deleteTransfer(id) {
+        if (typeof deleteFromSupabase === 'function') {
+            await deleteFromSupabase('transfers', id);
+        }
         let transfers = this.getTransfers();
         transfers = transfers.filter(t => t.id !== id);
         this.setData('zoosh_transfers', transfers);
-        if (typeof deleteFromSupabase === 'function') {
-            deleteFromSupabase('transfers', id);
-        }
     }
 
-    saveExpense(expense) {
+    async saveExpense(expense) {
+        if (typeof pushToSupabase === 'function') {
+            await pushToSupabase('expenses', expense);
+        }
         const expenses = this.getExpenses();
         const index = expenses.findIndex(e => e.id === expense.id);
         if (index > -1) {
@@ -210,19 +213,16 @@ class Database {
         }
         this.setData('zoosh_expenses', expenses);
         this.recalculateProjectSpending();
-        if (typeof pushToSupabase === 'function') {
-            pushToSupabase('expenses', expense);
-        }
     }
 
-    deleteExpense(id) {
+    async deleteExpense(id) {
+        if (typeof deleteFromSupabase === 'function') {
+            await deleteFromSupabase('expenses', id);
+        }
         let expenses = this.getExpenses();
         expenses = expenses.filter(e => e.id !== id);
         this.setData('zoosh_expenses', expenses);
         this.recalculateProjectSpending();
-        if (typeof deleteFromSupabase === 'function') {
-            deleteFromSupabase('expenses', id);
-        }
     }
 
     recalculateProjectSpending() {
@@ -1352,7 +1352,7 @@ function editExpenseAction(expId) {
 }
 
 // Save Expense Logic
-function saveExpenseForm(event) {
+async function saveExpenseForm(event) {
     event.preventDefault();
     
     const amount = Number(document.getElementById('exp-amount').value);
@@ -1390,33 +1390,38 @@ function saveExpenseForm(event) {
         updatedAt: new Date().toISOString()
     };
 
-    db.saveExpense(expenseObj);
+    try {
+        await db.saveExpense(expenseObj);
 
-    // Notify Owner / Manager of new submission
-    const notifs = db.getNotifications();
-    notifs.unshift({
-        id: 'notif-' + Date.now(),
-        title: 'New Expense Added',
-        message: `${currentUser.name} added an expense for ₹${amount.toLocaleString()} from ${bankAccount}.`,
-        time: 'Just now',
-        unread: true,
-        roles: ['owner', 'manager']
-    });
-    db.setData('zoosh_notifications', notifs);
+        // Notify Owner / Manager of new submission
+        const notifs = db.getNotifications();
+        notifs.unshift({
+            id: 'notif-' + Date.now(),
+            title: 'New Expense Added',
+            message: `${currentUser.name} added an expense for ₹${amount.toLocaleString()} from ${bankAccount}.`,
+            time: 'Just now',
+            unread: true,
+            roles: ['owner', 'manager']
+        });
+        db.setData('zoosh_notifications', notifs);
 
-    // Reset Form
-    document.getElementById('expense-entry-form').reset();
-    document.getElementById('exp-id').value = '';
-    
-    // Visual Confetti feedback
-    confetti({
-        particleCount: 50,
-        spread: 40,
-        origin: { y: 0.8 }
-    });
+        // Reset Form
+        document.getElementById('expense-entry-form').reset();
+        document.getElementById('exp-id').value = '';
+        
+        // Visual Confetti feedback
+        confetti({
+            particleCount: 50,
+            spread: 40,
+            origin: { y: 0.8 }
+        });
 
-    switchView('expenses');
-    initApp();
+        switchView('expenses');
+        initApp();
+    } catch (err) {
+        console.error('Failed to save expense to database:', err);
+        alert('Error: Unable to save expense. Please try again later. Details: ' + err.message);
+    }
 }
 
 // Custom Categories
@@ -3514,7 +3519,7 @@ function renderTransfersList() {
     lucide.createIcons();
 }
 
-function saveIncomeForm(event) {
+async function saveIncomeForm(event) {
     event.preventDefault();
     
     const amount = Number(document.getElementById('inc-amount').value);
@@ -3542,23 +3547,26 @@ function saveIncomeForm(event) {
         attachments: []
     };
 
-    db.saveIncome(incomeObj);
-    if (typeof pushToSupabase === 'function') {
-        pushToSupabase('incomes', incomeObj);
-    }
+    try {
+        await db.saveIncome(incomeObj);
 
-    // Reset form and go back
-    document.getElementById('income-entry-form').reset();
-    document.getElementById('inc-id').value = '';
-    
-    if (typeof confetti === 'function') {
-        confetti({ particleCount: 30, spread: 30 });
+        // Reset form and go back
+        document.getElementById('income-entry-form').reset();
+        document.getElementById('inc-id').value = '';
+        
+        if (typeof confetti === 'function') {
+            confetti({ particleCount: 30, spread: 30 });
+        }
+        
+        switchView('incomes');
+        initApp();
+    } catch (err) {
+        console.error('Failed to save income to database:', err);
+        alert('Error: Unable to save income. Please try again. Details: ' + err.message);
     }
-    
-    switchView('incomes');
 }
 
-function saveTransferForm(event) {
+async function saveTransferForm(event) {
     event.preventDefault();
     
     const amount = Number(document.getElementById('trf-amount').value);
@@ -3596,20 +3604,23 @@ function saveTransferForm(event) {
         attachments: []
     };
 
-    db.saveTransfer(transferObj);
-    if (typeof pushToSupabase === 'function') {
-        pushToSupabase('transfers', transferObj);
-    }
+    try {
+        await db.saveTransfer(transferObj);
 
-    // Reset form and go back
-    document.getElementById('transfer-entry-form').reset();
-    document.getElementById('trf-id').value = '';
-    
-    if (typeof confetti === 'function') {
-        confetti({ particleCount: 30, spread: 30 });
+        // Reset form and go back
+        document.getElementById('transfer-entry-form').reset();
+        document.getElementById('trf-id').value = '';
+        
+        if (typeof confetti === 'function') {
+            confetti({ particleCount: 30, spread: 30 });
+        }
+        
+        switchView('transfers');
+        initApp();
+    } catch (err) {
+        console.error('Failed to save transfer to database:', err);
+        alert('Error: Unable to save transfer. Please try again. Details: ' + err.message);
     }
-    
-    switchView('transfers');
 }
 
 function editIncomeAction(id) {
@@ -3625,14 +3636,15 @@ function editIncomeAction(id) {
     document.getElementById('inc-description').value = inc.description;
 }
 
-function deleteIncomeAction(id) {
+async function deleteIncomeAction(id) {
     if (confirm('Are you sure you want to delete this income record?')) {
-        db.deleteIncome(id);
-        if (typeof deleteFromSupabase === 'function') {
-            deleteFromSupabase('incomes', id);
+        try {
+            await db.deleteIncome(id);
+            initApp();
+        } catch (err) {
+            console.error('Failed to delete income:', err);
+            alert('Error deleting income: ' + err.message);
         }
-        renderIncomesList();
-        renderDashboard();
     }
 }
 
@@ -3649,13 +3661,14 @@ function editTransferAction(id) {
     document.getElementById('trf-description').value = trf.description;
 }
 
-function deleteTransferAction(id) {
+async function deleteTransferAction(id) {
     if (confirm('Are you sure you want to delete this transfer record?')) {
-        db.deleteTransfer(id);
-        if (typeof deleteFromSupabase === 'function') {
-            deleteFromSupabase('transfers', id);
+        try {
+            await db.deleteTransfer(id);
+            initApp();
+        } catch (err) {
+            console.error('Failed to delete transfer:', err);
+            alert('Error deleting transfer: ' + err.message);
         }
-        renderTransfersList();
-        renderDashboard();
     }
 }
