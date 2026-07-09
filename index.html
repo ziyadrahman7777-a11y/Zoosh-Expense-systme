@@ -368,12 +368,16 @@
 
                         <!-- Date Quick Filter badges -->
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; width: 100%;">
-                            <div class="filter-row-badges">
+                            <div class="filter-row-badges" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                                 <button class="filter-badge" data-date="all">All Dates</button>
                                 <button class="filter-badge" data-date="today">Today</button>
                                 <button class="filter-badge" data-date="yesterday">Yesterday</button>
                                 <button class="filter-badge" data-date="this-week">This Week</button>
                                 <button class="filter-badge active" data-date="this-month">This Month</button>
+                                <button class="filter-badge" data-date="last-month">Last Month</button>
+                                <button class="filter-badge" data-date="this-year">This Year</button>
+                                <button class="filter-badge" data-date="specific">Specific Date</button>
+                                <button class="filter-badge" data-date="custom-range">Custom Range</button>
                             </div>
 
                             <div style="display: flex; gap: 12px; align-items: center;">
@@ -387,6 +391,26 @@
                                     Show Advanced Filters <i data-lucide="chevron-down" style="width:16px;"></i>
                                 </button>
                             </div>
+                        </div>
+
+                        <!-- Date Pickers Wrapper for Specific Date and Custom Range -->
+                        <div id="date-pickers-container" style="display: flex; gap: 12px; align-items: center; margin-top: 12px; flex-wrap: wrap;">
+                            <!-- Specific Date Picker -->
+                            <div id="specific-date-picker-wrap" style="display: none; align-items: center; gap: 8px;">
+                                <label for="filter-specific-date" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);">Select Date:</label>
+                                <input type="date" id="filter-specific-date" class="input-control" style="width: auto; height: 32px; font-size: 0.75rem; border-radius: 12px; padding: 0 10px;">
+                            </div>
+                            <!-- Custom Range Picker -->
+                            <div id="custom-range-picker-wrap" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <label for="filter-from-date" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);">From:</label>
+                                <input type="date" id="filter-from-date" class="input-control" style="width: auto; height: 32px; font-size: 0.75rem; border-radius: 12px; padding: 0 10px;">
+                                <label for="filter-to-date" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);">To:</label>
+                                <input type="date" id="filter-to-date" class="input-control" style="width: auto; height: 32px; font-size: 0.75rem; border-radius: 12px; padding: 0 10px;">
+                            </div>
+                            <!-- One-click Clear filter button -->
+                            <button type="button" class="btn btn-secondary" id="clear-date-filter-btn" style="height: 32px; padding: 0 12px; font-size: 0.75rem; border-radius: 12px; display: none; align-items: center; gap: 4px; font-weight: 700; color: var(--danger); border-color: rgba(239, 68, 68, 0.2);">
+                                <i data-lucide="x-circle" style="width: 14px; height: 14px;"></i> Clear Date Filter
+                            </button>
                         </div>
 
                         <!-- Expanded advanced filters panel -->

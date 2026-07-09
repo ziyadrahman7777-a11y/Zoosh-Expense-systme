@@ -245,6 +245,9 @@ let currentRole = 'owner';
 let currentUser = db.getUsers().find(u => u.role === 'owner');
 let activeView = 'dashboard';
 let expenseFilterDate = 'this-month';
+let expenseSpecificDate = '';
+let expenseFromDate = '';
+let expenseToDate = '';
 let expenseFilterSearch = '';
 let expenseSort = 'newest';
 let activeFilters = {
@@ -641,31 +644,241 @@ function handleQuickSummaryFilterChange(val) {
     renderQuickSummary();
 }
 
-function renderQuickSummary() {
+function getFilteredExpenses() {
     const expenses = db.getExpenses();
+    const vendors = db.getVendors();
+    const projects = db.getProjects();
     
-    // Filter expenses based on selected period
-    let filtered = expenses.filter(e => e.status !== 'Rejected' && e.status !== 'Cancelled');
-    
-    const todayStr = new Date().toISOString().split('T')[0];
+    let filtered = expenses;
+
+    // 1. Role Check
+    if (currentRole === 'staff') {
+        filtered = filtered.filter(e => e.createdBy === currentUser.id);
+    }
+
+    // 2. Date Filter
     const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
     const startOfWeek = new Date();
     startOfWeek.setDate(now.getDate() - now.getDay());
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    startOfWeek.setHours(0,0,0,0);
     
-    if (quickSummaryFilterValue === 'today') {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+    if (expenseFilterDate === 'today') {
         filtered = filtered.filter(e => e.createdAt.startsWith(todayStr));
-    } else if (quickSummaryFilterValue === 'this-week') {
+    } else if (expenseFilterDate === 'yesterday') {
+        filtered = filtered.filter(e => e.createdAt.startsWith(yesterdayStr));
+    } else if (expenseFilterDate === 'this-week') {
         filtered = filtered.filter(e => new Date(e.createdAt) >= startOfWeek);
-    } else if (quickSummaryFilterValue === 'this-month') {
+    } else if (expenseFilterDate === 'this-month') {
         filtered = filtered.filter(e => new Date(e.createdAt) >= startOfMonth);
+    } else if (expenseFilterDate === 'last-month') {
+        filtered = filtered.filter(e => {
+            const date = new Date(e.createdAt);
+            return date >= startOfLastMonth && date <= endOfLastMonth;
+        });
+    } else if (expenseFilterDate === 'this-year') {
+        filtered = filtered.filter(e => new Date(e.createdAt) >= startOfYear);
+    } else if (expenseFilterDate === 'specific' && expenseSpecificDate) {
+        filtered = filtered.filter(e => e.createdAt.startsWith(expenseSpecificDate));
+    } else if (expenseFilterDate === 'custom-range' && expenseFromDate && expenseToDate) {
+        const start = new Date(expenseFromDate);
+        start.setHours(0,0,0,0);
+        const end = new Date(expenseToDate);
+        end.setHours(23,59,59,999);
+        filtered = filtered.filter(e => {
+            const date = new Date(e.createdAt);
+            return date >= start && date <= end;
+        });
     }
+
+    // 3. Dropdown Filters
+    if (activeFilters.vendor !== 'all') {
+        filtered = filtered.filter(e => e.vendorId === activeFilters.vendor);
+    }
+    if (activeFilters.project !== 'all') {
+        filtered = filtered.filter(e => e.projectId === activeFilters.project);
+    }
+    if (activeFilters.category !== 'all') {
+        filtered = filtered.filter(e => e.category === activeFilters.category);
+    }
+    if (activeFilters.paymentMethod !== 'all') {
+        filtered = filtered.filter(e => e.paymentMethod === activeFilters.paymentMethod);
+    }
+    if (activeFilters.status !== 'all') {
+        filtered = filtered.filter(e => e.status === activeFilters.status);
+    }
+
+    // 4. Search Filter
+    if (expenseFilterSearch.trim()) {
+        const query = expenseFilterSearch.toLowerCase();
+        filtered = filtered.filter(e => {
+            const vName = (vendors.find(v => v.id === e.vendorId)?.name || e.vendorId || '').toLowerCase();
+            const pName = (projects.find(p => p.id === e.projectId)?.name || '').toLowerCase();
+            return (
+                e.id.toLowerCase().includes(query) ||
+                vName.includes(query) ||
+                pName.includes(query) ||
+                e.category.toLowerCase().includes(query) ||
+                (e.description || '').toLowerCase().includes(query)
+            );
+        });
+    }
+
+    return filtered;
+}
+
+function getFilterPeriodText() {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    function formatDateNice(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    if (expenseFilterDate === 'today') {
+        return `Date: ${formatDateNice(new Date())}`;
+    } else if (expenseFilterDate === 'yesterday') {
+        const yest = new Date();
+        yest.setDate(yest.getDate() - 1);
+        return `Date: ${formatDateNice(yest)}`;
+    } else if (expenseFilterDate === 'this-week') {
+        return 'Period: This Week';
+    } else if (expenseFilterDate === 'this-month') {
+        return 'Period: This Month';
+    } else if (expenseFilterDate === 'last-month') {
+        return 'Period: Last Month';
+    } else if (expenseFilterDate === 'this-year') {
+        return 'Period: This Year';
+    } else if (expenseFilterDate === 'specific' && expenseSpecificDate) {
+        return `Date: ${formatDateNice(expenseSpecificDate)}`;
+    } else if (expenseFilterDate === 'custom-range' && expenseFromDate && expenseToDate) {
+        return `Period: ${formatDateNice(expenseFromDate)} to ${formatDateNice(expenseToDate)}`;
+    }
+    return 'Period: All Dates';
+}
+
+function getFilteredIncomes() {
+    const incomes = db.getIncomes();
+    let filtered = incomes;
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    const startOfWeek = new Date();
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0,0,0,0);
+    
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+    if (expenseFilterDate === 'today') {
+        filtered = filtered.filter(i => (i.date || i.createdAt || '').startsWith(todayStr));
+    } else if (expenseFilterDate === 'yesterday') {
+        filtered = filtered.filter(i => (i.date || i.createdAt || '').startsWith(yesterdayStr));
+    } else if (expenseFilterDate === 'this-week') {
+        filtered = filtered.filter(i => new Date(i.date || i.createdAt) >= startOfWeek);
+    } else if (expenseFilterDate === 'this-month') {
+        filtered = filtered.filter(i => new Date(i.date || i.createdAt) >= startOfMonth);
+    } else if (expenseFilterDate === 'last-month') {
+        filtered = filtered.filter(i => {
+            const date = new Date(i.date || i.createdAt);
+            return date >= startOfLastMonth && date <= endOfLastMonth;
+        });
+    } else if (expenseFilterDate === 'this-year') {
+        filtered = filtered.filter(i => new Date(i.date || i.createdAt) >= startOfYear);
+    } else if (expenseFilterDate === 'specific' && expenseSpecificDate) {
+        filtered = filtered.filter(i => (i.date || i.createdAt || '').startsWith(expenseSpecificDate));
+    } else if (expenseFilterDate === 'custom-range' && expenseFromDate && expenseToDate) {
+        const start = new Date(expenseFromDate);
+        start.setHours(0,0,0,0);
+        const end = new Date(expenseToDate);
+        end.setHours(23,59,59,999);
+        filtered = filtered.filter(i => {
+            const date = new Date(i.date || i.createdAt);
+            return date >= start && date <= end;
+        });
+    }
+
+    return filtered;
+}
+
+function getFilteredTransfers() {
+    const transfers = db.getTransfers();
+    let filtered = transfers;
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    const startOfWeek = new Date();
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0,0,0,0);
+    
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+    if (expenseFilterDate === 'today') {
+        filtered = filtered.filter(t => (t.date || t.createdAt || '').startsWith(todayStr));
+    } else if (expenseFilterDate === 'yesterday') {
+        filtered = filtered.filter(t => (t.date || t.createdAt || '').startsWith(yesterdayStr));
+    } else if (expenseFilterDate === 'this-week') {
+        filtered = filtered.filter(t => new Date(t.date || t.createdAt) >= startOfWeek);
+    } else if (expenseFilterDate === 'this-month') {
+        filtered = filtered.filter(t => new Date(t.date || t.createdAt) >= startOfMonth);
+    } else if (expenseFilterDate === 'last-month') {
+        filtered = filtered.filter(t => {
+            const date = new Date(t.date || t.createdAt);
+            return date >= startOfLastMonth && date <= endOfLastMonth;
+        });
+    } else if (expenseFilterDate === 'this-year') {
+        filtered = filtered.filter(t => new Date(t.date || t.createdAt) >= startOfYear);
+    } else if (expenseFilterDate === 'specific' && expenseSpecificDate) {
+        filtered = filtered.filter(t => (t.date || t.createdAt || '').startsWith(expenseSpecificDate));
+    } else if (expenseFilterDate === 'custom-range' && expenseFromDate && expenseToDate) {
+        const start = new Date(expenseFromDate);
+        start.setHours(0,0,0,0);
+        const end = new Date(expenseToDate);
+        end.setHours(23,59,59,999);
+        filtered = filtered.filter(t => {
+            const date = new Date(t.date || t.createdAt);
+            return date >= start && date <= end;
+        });
+    }
+
+    return filtered;
+}
+
+function renderQuickSummary(filteredExpenses) {
+    const activeList = filteredExpenses.filter(e => e.status !== 'Rejected' && e.status !== 'Cancelled');
     
     // Calculations
-    const totalExpensesSum = filtered.reduce((sum, e) => sum + Number(e.amount), 0);
-    const woodSum = filtered.filter(e => e.category === 'Wood' || e.category === 'Plywood' || e.category === 'Wood & Plywood').reduce((sum, e) => sum + Number(e.amount), 0);
-    const salariesSum = filtered.filter(e => e.category === 'Salary' || e.category === 'Labour').reduce((sum, e) => sum + Number(e.amount), 0);
-    const transportSum = filtered.filter(e => e.category === 'Transport').reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalExpensesSum = activeList.reduce((sum, e) => sum + Number(e.amount), 0);
+    const woodSum = activeList.filter(e => e.category === 'Wood' || e.category === 'Plywood' || e.category === 'Wood & Plywood').reduce((sum, e) => sum + Number(e.amount), 0);
+    const salariesSum = activeList.filter(e => e.category === 'Salary' || e.category === 'Labour').reduce((sum, e) => sum + Number(e.amount), 0);
+    const transportSum = activeList.filter(e => e.category === 'Transport').reduce((sum, e) => sum + Number(e.amount), 0);
     
     // Update Quick Summary card elements
     const totalEl = document.getElementById('quick-total-val');
@@ -689,67 +902,10 @@ function renderExpensesList() {
     if (!listContainer) return;
 
     // Apply Filter Logic
-    let filtered = expenses;
+    let filtered = getFilteredExpenses();
 
-    // Permissions check: Staff can only see their own expenses
-    if (currentRole === 'staff') {
-        filtered = filtered.filter(e => e.createdBy === currentUser.id);
-    }
-
-    // Filter by Date Badges
-    const todayStr = new Date().toISOString().split('T')[0];
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    
-    const now = new Date();
-    const startOfWeek = new Date();
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    if (expenseFilterDate === 'today') {
-        filtered = filtered.filter(e => e.createdAt.startsWith(todayStr));
-    } else if (expenseFilterDate === 'yesterday') {
-        filtered = filtered.filter(e => e.createdAt.startsWith(yesterdayStr));
-    } else if (expenseFilterDate === 'this-week') {
-        filtered = filtered.filter(e => new Date(e.createdAt) >= startOfWeek);
-    } else if (expenseFilterDate === 'this-month') {
-        filtered = filtered.filter(e => new Date(e.createdAt) >= startOfMonth);
-    }
-
-    // Advanced drop-down filters
-    if (activeFilters.vendor !== 'all') {
-        filtered = filtered.filter(e => e.vendorId === activeFilters.vendor);
-    }
-    if (activeFilters.project !== 'all') {
-        filtered = filtered.filter(e => e.projectId === activeFilters.project);
-    }
-    if (activeFilters.category !== 'all') {
-        filtered = filtered.filter(e => e.category === activeFilters.category);
-    }
-    if (activeFilters.paymentMethod !== 'all') {
-        filtered = filtered.filter(e => e.paymentMethod === activeFilters.paymentMethod);
-    }
-    if (activeFilters.status !== 'all') {
-        filtered = filtered.filter(e => e.status === activeFilters.status);
-    }
-
-    // Global Text Search
-    if (expenseFilterSearch.trim()) {
-        const query = expenseFilterSearch.toLowerCase();
-        filtered = filtered.filter(e => {
-            const vName = (vendors.find(v => v.id === e.vendorId)?.name || e.vendorId || '').toLowerCase();
-            const pName = (projects.find(p => p.id === e.projectId)?.name || '').toLowerCase();
-            return (
-                e.id.toLowerCase().includes(query) ||
-                vName.includes(query) ||
-                pName.includes(query) ||
-                e.category.toLowerCase().includes(query) ||
-                (e.description || '').toLowerCase().includes(query) ||
-                (e.transactionNo || '').toLowerCase().includes(query)
-            );
-        });
-    }
+    // Render Quick Summary based on filtered expenses
+    renderQuickSummary(filtered);
 
     // Sorting
     filtered.sort((a, b) => {
@@ -947,7 +1103,7 @@ function renderReportsView() {
     const vendors = db.getVendors();
     const projects = db.getProjects();
 
-    const activeExpenses = expenses.filter(e => e.status !== 'Rejected' && e.status !== 'Cancelled');
+    const activeExpenses = getFilteredExpenses().filter(e => e.status !== 'Rejected' && e.status !== 'Cancelled');
 
     // 1. Calculate Analytics Summary Cards
     const totalExp = activeExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
@@ -1571,10 +1727,10 @@ function toggleVoiceRecording() {
 // EXPORTING MODULES (SIMULATORS)
 // ----------------------------------------------------
 function exportReport(format) {
-    const expenses = db.getExpenses();
+    const expenses = getFilteredExpenses();
     const vendors = db.getVendors();
-    const incomes = db.getIncomes();
-    const transfers = db.getTransfers();
+    const incomes = getFilteredIncomes();
+    const transfers = getFilteredTransfers();
     
     let content = '';
     let filename = `zoosh_report_${Date.now()}`;
@@ -1849,7 +2005,8 @@ function exportReport(format) {
                     </div>
                     <div class="report-meta">
                         <p style="margin:0; font-weight:700;">Financial Audit Statement</p>
-                        <p style="margin:2px 0 0 0; font-size:0.75rem;">Generated on: ${new Date().toLocaleString()}</p>
+                        <p style="margin:2px 0 0 0; font-weight:600; color:#0B5D3F;">${getFilterPeriodText()}</p>
+                        <p style="margin:2px 0 0 0; font-size:0.75rem; color:#6B7280;">Generated on: ${new Date().toLocaleString()}</p>
                     </div>
                 </div>
 
@@ -2007,9 +2164,91 @@ function setupEventListeners() {
             document.querySelectorAll('.filter-badge[data-date]').forEach(b => b.classList.remove('active'));
             badge.classList.add('active');
             expenseFilterDate = badge.getAttribute('data-date');
+            
+            const specificWrap = document.getElementById('specific-date-picker-wrap');
+            const customWrap = document.getElementById('custom-range-picker-wrap');
+            const clearBtn = document.getElementById('clear-date-filter-btn');
+
+            if (expenseFilterDate === 'specific') {
+                if (specificWrap) specificWrap.style.display = 'flex';
+                if (customWrap) customWrap.style.display = 'none';
+            } else if (expenseFilterDate === 'custom-range') {
+                if (specificWrap) specificWrap.style.display = 'none';
+                if (customWrap) customWrap.style.display = 'flex';
+            } else {
+                if (specificWrap) specificWrap.style.display = 'none';
+                if (customWrap) customWrap.style.display = 'none';
+            }
+
+            if (expenseFilterDate !== 'all') {
+                if (clearBtn) clearBtn.style.display = 'flex';
+            } else {
+                if (clearBtn) clearBtn.style.display = 'none';
+            }
+
             renderExpensesList();
+            renderReportsView();
         });
     });
+
+    // Date Picker Input Listeners
+    const specDateInput = document.getElementById('filter-specific-date');
+    if (specDateInput) {
+        specDateInput.addEventListener('change', (e) => {
+            expenseSpecificDate = e.target.value;
+            renderExpensesList();
+            renderReportsView();
+        });
+    }
+
+    const fromDateInput = document.getElementById('filter-from-date');
+    if (fromDateInput) {
+        fromDateInput.addEventListener('change', (e) => {
+            expenseFromDate = e.target.value;
+            renderExpensesList();
+            renderReportsView();
+        });
+    }
+
+    const toDateInput = document.getElementById('filter-to-date');
+    if (toDateInput) {
+        toDateInput.addEventListener('change', (e) => {
+            expenseToDate = e.target.value;
+            renderExpensesList();
+            renderReportsView();
+        });
+    }
+
+    // Clear Date Filter Button
+    const clearDateBtn = document.getElementById('clear-date-filter-btn');
+    if (clearDateBtn) {
+        clearDateBtn.addEventListener('click', () => {
+            expenseFilterDate = 'all';
+            expenseSpecificDate = '';
+            expenseFromDate = '';
+            expenseToDate = '';
+
+            document.querySelectorAll('.filter-badge[data-date]').forEach(b => {
+                b.classList.remove('active');
+                if (b.getAttribute('data-date') === 'all') {
+                    b.classList.add('active');
+                }
+            });
+
+            if (specDateInput) specDateInput.value = '';
+            if (fromDateInput) fromDateInput.value = '';
+            if (toDateInput) toDateInput.value = '';
+
+            const specificWrap = document.getElementById('specific-date-picker-wrap');
+            const customWrap = document.getElementById('custom-range-picker-wrap');
+            if (specificWrap) specificWrap.style.display = 'none';
+            if (customWrap) customWrap.style.display = 'none';
+            clearDateBtn.style.display = 'none';
+
+            renderExpensesList();
+            renderReportsView();
+        });
+    }
 
     // Expandable Filters Panel
     const advBtn = document.getElementById('toggle-adv-filters');
@@ -2544,52 +2783,10 @@ function exportSingleExpensePDF(expenseId) {
 }
 
 function exportExpensesPDF() {
-    const expenses = db.getExpenses();
     const vendors = db.getVendors();
     
     // Apply exact same filters as renderExpensesList()
-    let filtered = expenses;
-    if (currentRole === 'staff') {
-        filtered = filtered.filter(e => e.createdBy === currentUser.id);
-    }
-    
-    const todayStr = new Date().toISOString().split('T')[0];
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    const now = new Date();
-    const startOfWeek = new Date();
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    if (expenseFilterDate === 'today') {
-        filtered = filtered.filter(e => e.createdAt.startsWith(todayStr));
-    } else if (expenseFilterDate === 'yesterday') {
-        filtered = filtered.filter(e => e.createdAt.startsWith(yesterdayStr));
-    } else if (expenseFilterDate === 'this-week') {
-        filtered = filtered.filter(e => new Date(e.createdAt) >= startOfWeek);
-    } else if (expenseFilterDate === 'this-month') {
-        filtered = filtered.filter(e => new Date(e.createdAt) >= startOfMonth);
-    }
-
-    if (activeFilters.vendor !== 'all') {
-        filtered = filtered.filter(e => e.vendorId === activeFilters.vendor);
-    }
-    if (activeFilters.status !== 'all') {
-        filtered = filtered.filter(e => e.status === activeFilters.status);
-    }
-
-    if (expenseFilterSearch.trim()) {
-        const query = expenseFilterSearch.toLowerCase();
-        filtered = filtered.filter(e => {
-            const vName = (vendors.find(v => v.id === e.vendorId)?.name || e.vendorId || '').toLowerCase();
-            return (
-                e.id.toLowerCase().includes(query) ||
-                vName.includes(query) ||
-                (e.description || '').toLowerCase().includes(query)
-            );
-        });
-    }
+    let filtered = getFilteredExpenses();
 
     // Sort
     filtered.sort((a, b) => {
@@ -2678,7 +2875,8 @@ function exportExpensesPDF() {
                 </div>
                 <div class="meta">
                     <p style="margin:0; font-weight:700;">Expenses Statement Report</p>
-                    <p style="margin:2px 0 0 0;">Generated: ${new Date().toLocaleString()}</p>
+                    <p style="margin:2px 0 0 0; font-weight:600; color: #0B5D3F;">${getFilterPeriodText()}</p>
+                    <p style="margin:2px 0 0 0; font-size:0.75rem; color:#6B7280;">Generated: ${new Date().toLocaleString()}</p>
                 </div>
             </div>
             <div class="summary">
