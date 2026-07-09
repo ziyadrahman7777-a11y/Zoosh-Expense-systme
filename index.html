@@ -68,6 +68,12 @@
                         <span>Add Expense</span>
                     </a>
                 </li>
+                <li class="menu-item" data-view="bank-import">
+                    <a href="#">
+                        <i data-lucide="file-spreadsheet"></i>
+                        <span>Import Statement</span>
+                    </a>
+                </li>
 
 
                 <li class="menu-item" data-view="reports">
@@ -371,6 +377,9 @@
                             </div>
 
                             <div style="display: flex; gap: 12px; align-items: center;">
+                                <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="switchView('bank-import')">
+                                    <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px; color: var(--primary);"></i> Import Statement
+                                </button>
                                 <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="exportExpensesPDF()">
                                     <i data-lucide="file-text" style="width: 16px; height: 16px; color: var(--primary);"></i> Export PDF Report
                                 </button>
@@ -756,6 +765,71 @@
                     </div>
                 </section>
 
+                <!-- 5. BANK STATEMENT IMPORT VIEW -->
+                <section class="view-section" id="view-bank-import">
+                    <div class="block-header" style="margin-bottom: 24px;">
+                        <h3 class="block-title"><i data-lucide="file-spreadsheet"></i> Bank Statement Import</h3>
+                        <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Upload transaction logs directly from your bank</span>
+                    </div>
+
+                    <!-- Step 1: Upload Card -->
+                    <div class="card-block" id="import-upload-card" style="margin-bottom: 24px;">
+                        <div class="form-grid" style="margin-bottom: 20px;">
+                            <div class="form-group">
+                                <label class="form-label" for="import-bank-account">Select Bank Account <span>*</span></label>
+                                <select id="import-bank-account" class="select-control">
+                                    <option value="HDFC Current Account">HDFC Current Account</option>
+                                    <option value="Hafeez Personal Account">Hafeez Personal Account</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Drag and Drop Dropzone -->
+                        <div class="ocr-drop-area" id="import-dropzone" style="border: 2px dashed var(--border-color); padding: 40px 20px; text-align: center; border-radius: var(--radius-lg); cursor: pointer; transition: all 0.3s ease; background-color: rgba(0,0,0,0.02); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
+                            <div style="width: 54px; height: 54px; border-radius: 50%; background-color: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                                <i data-lucide="upload-cloud" style="width: 28px; height: 28px;"></i>
+                            </div>
+                            <div>
+                                <h4 style="margin: 0 0 4px 0; font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">Drag & drop bank statement here</h4>
+                                <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">Supports CSV, Excel (.xlsx, .xls) formats</p>
+                            </div>
+                            <input type="file" id="import-file-input" accept=".csv, .xlsx, .xls" style="display: none;">
+                            <button type="button" class="btn btn-secondary" style="height: 32px; font-size: 0.75rem;" onclick="document.getElementById('import-file-input').click()">Browse Files</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Transaction Review Table Card (Hidden on startup) -->
+                    <div class="card-block" id="import-review-card" style="display: none;">
+                        <div class="block-header" style="margin-bottom: 20px; flex-wrap: wrap; gap: 16px;">
+                            <h3 class="block-title" style="font-size: 1rem;"><i data-lucide="eye"></i> Parsed Transactions Review</h3>
+                            <div style="display: flex; gap: 12px; margin-left: auto;">
+                                <button type="button" class="btn btn-secondary" style="height: 36px; font-size: 0.8rem; border-radius: 18px;" onclick="cancelImport()">Cancel & Reset</button>
+                                <button type="button" class="btn btn-primary" style="height: 36px; font-size: 0.8rem; border-radius: 18px; background-color: var(--primary); border-color: var(--primary); color: white;" onclick="saveImportedTransactions()">Confirm & Import (<span id="import-checked-count">0</span>)</button>
+                            </div>
+                        </div>
+
+                        <div style="overflow-x: auto;">
+                            <table class="table-control" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-color); text-align: left; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">
+                                        <th style="padding: 12px 16px; width: 40px;"><input type="checkbox" id="import-select-all" checked onchange="toggleSelectAllImport(this.checked)"></th>
+                                        <th style="padding: 12px 16px;">Date</th>
+                                        <th style="padding: 12px 16px;">Type</th>
+                                        <th style="padding: 12px 16px;">Vendor/Customer</th>
+                                        <th style="padding: 12px 16px;">Amount</th>
+                                        <th style="padding: 12px 16px;">Description</th>
+                                        <th style="padding: 12px 16px;">Status</th>
+                                        <th style="padding: 12px 16px; text-align: center;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="import-review-tbody" style="font-size: 0.85rem;">
+                                    <!-- Filled dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
             </main>
         </div>
     </div>
@@ -844,6 +918,52 @@
         </div>
     </div>
 
+    <!-- Inline Transaction Editor Modal -->
+    <div class="detail-overlay" id="import-edit-modal-overlay" style="display:none; justify-content:center; align-items:center; z-index:9999;">
+        <div class="detail-modal" style="max-width: 480px; width: 90%; background-color: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 16px 20px;">
+                <div class="modal-header-left" style="display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="edit" style="color: var(--primary); width: 20px; height: 20px;"></i>
+                    <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--primary);">Edit Transaction</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeImportEditModal()" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i data-lucide="x"></i></button>
+            </div>
+            
+            <form id="import-edit-form" onsubmit="saveImportRowEdit(event)" style="margin:0;">
+                <input type="hidden" id="import-edit-index">
+                <div class="modal-body" style="padding: 20px; display:flex; flex-direction:column; gap:16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="import-edit-date">Date <span>*</span></label>
+                        <input type="date" id="import-edit-date" class="input-control" required style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="import-edit-type">Type <span>*</span></label>
+                        <select id="import-edit-type" class="select-control" required style="width: 100%; box-sizing: border-box;">
+                            <option value="Expense">Expense (Debit)</option>
+                            <option value="Income">Income (Credit)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="import-edit-party">Vendor / Customer <span>*</span></label>
+                        <input type="text" id="import-edit-party" class="input-control" placeholder="Enter name" required style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="import-edit-amount">Amount (₹) <span>*</span></label>
+                        <input type="number" id="import-edit-amount" class="input-control" step="0.01" min="0.01" required style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="import-edit-desc">Description / Narration <span>*</span></label>
+                        <textarea id="import-edit-desc" class="input-control" required style="width: 100%; height: 80px; box-sizing: border-box; resize: vertical; padding: 8px; font-family: inherit; font-size: 0.85rem;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions-footer" style="padding: 16px 20px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; justify-content: flex-end; background-color: var(--bg-card); border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeImportEditModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="background-color: var(--primary); border-color: var(--primary); color: white;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 
 
     <!-- External Library Scripts -->
@@ -851,6 +971,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Main JS logic script -->
     <script src="app.js"></script>
 </body>

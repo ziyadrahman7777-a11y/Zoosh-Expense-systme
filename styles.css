@@ -1940,3 +1940,52 @@ textarea.input-control {
         width: 100%;
     }
 }
+
+/* Bank Statement Import Styling */
+#import-dropzone.dragover {
+    border-color: var(--primary) !important;
+    background-color: rgba(9, 133, 81, 0.08) !important;
+    box-shadow: 0 0 12px rgba(9, 133, 81, 0.15);
+}
+
+.import-row-new {
+    background-color: transparent;
+}
+
+.import-row-duplicate {
+    background-color: rgba(239, 68, 68, 0.05);
+}
+
+.import-row-review {
+    background-color: rgba(245, 158, 11, 0.05);
+}
+
+.badge-import-new {
+    background-color: rgba(9, 133, 81, 0.1);
+    color: var(--primary);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: inline-block;
+}
+
+.badge-import-duplicate {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: inline-block;
+}
+
+.badge-import-review {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: inline-block;
+}

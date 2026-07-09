@@ -360,6 +360,7 @@ function populateSelectDropdowns() {
 
 // Global Routing
 function switchView(viewId) {
+    console.log("switchView called with viewId:", viewId);
     activeView = viewId;
     
     // Check permissions
@@ -409,6 +410,8 @@ function switchView(viewId) {
         renderProjectsList();
     } else if (viewId === 'reports') {
         renderReportsView();
+    } else if (viewId === 'bank-import') {
+        initBankImportView();
     }
     
     // Close sidebar on mobile
@@ -1949,6 +1952,7 @@ function setupEventListeners() {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             const view = btn.getAttribute('data-view');
+            console.log("Menu item clicked, data-view:", view);
             if (view) switchView(view);
         });
     });
@@ -3646,4 +3650,600 @@ async function deleteTransferAction(id) {
             alert('Error deleting transfer: ' + err.message);
         }
     }
+}
+
+// ========================================================
+// BANK STATEMENT IMPORT MODULE
+// ========================================================
+
+let importedTransactions = [];
+let dropzoneListenersAdded = false;
+
+function initBankImportView() {
+    importedTransactions = [];
+    
+    // Reset file input
+    const fileInput = document.getElementById('import-file-input');
+    if (fileInput) fileInput.value = '';
+
+    // Show upload card, hide review card
+    const uploadCard = document.getElementById('import-upload-card');
+    const reviewCard = document.getElementById('import-review-card');
+    if (uploadCard) uploadCard.style.display = 'block';
+    if (reviewCard) reviewCard.style.display = 'none';
+
+    // Setup listeners if not already bound
+    if (!dropzoneListenersAdded) {
+        setupImportDropzone();
+        dropzoneListenersAdded = true;
+    }
+}
+
+function setupImportDropzone() {
+    const dropzone = document.getElementById('import-dropzone');
+    const fileInput = document.getElementById('import-file-input');
+
+    if (!dropzone || !fileInput) return;
+
+    // Click to select file
+    dropzone.addEventListener('click', (e) => {
+        if (e.target !== fileInput && !e.target.closest('button')) {
+            fileInput.click();
+        }
+    });
+
+    // Drag events
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dragover');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dragover');
+        }, false);
+    });
+
+    // Handle dropped files
+    dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files && files.length > 0) {
+            handleImportFile(files[0]);
+        }
+    }, false);
+
+    // Handle file picker selection
+    fileInput.addEventListener('change', (e) => {
+        if (fileInput.files && fileInput.files.length > 0) {
+            handleImportFile(fileInput.files[0]);
+        }
+    });
+}
+
+function handleImportFile(file) {
+    if (!file) return;
+
+    const bankAccount = document.getElementById('import-bank-account').value;
+    if (!bankAccount) {
+        alert('Please select a bank account first.');
+        return;
+    }
+
+    const name = file.name.toLowerCase();
+    const isCSV = name.endsWith('.csv');
+    const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls');
+
+    if (!isCSV && !isExcel) {
+        alert('Unsupported file format. Please upload a CSV or Excel statement.');
+        return;
+    }
+
+    const reader = new FileReader();
+
+    if (isCSV) {
+        reader.onload = function(e) {
+            try {
+                const text = e.target.result;
+                parseCSVStatement(text, bankAccount);
+            } catch (err) {
+                console.error(err);
+                alert('Parsing failed: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    } else if (isExcel) {
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                parseExcelStatement(json, bankAccount);
+            } catch (err) {
+                console.error(err);
+                alert('Excel parsing failed: ' + err.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+}
+
+function parseCSVStatement(text, bankAccount) {
+    // Parse CSV lines keeping quoted strings intact
+    const lines = [];
+    let row = [];
+    let inQuotes = false;
+    let currentField = '';
+
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+            if (inQuotes && nextChar === '"') {
+                currentField += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            row.push(currentField.trim());
+            currentField = '';
+        } else if ((char === '\r' || char === '\n') && !inQuotes) {
+            if (char === '\r' && nextChar === '\n') {
+                i++;
+            }
+            row.push(currentField.trim());
+            lines.push(row);
+            row = [];
+            currentField = '';
+        } else {
+            currentField += char;
+        }
+    }
+    if (currentField || row.length > 0) {
+        row.push(currentField.trim());
+        lines.push(row);
+    }
+
+    // Filter empty lines
+    const validLines = lines.filter(l => l.length > 0 && l.some(val => val !== ''));
+    if (validLines.length === 0) {
+        throw new Error('CSV file appears to be empty.');
+    }
+
+    // Auto-detect header row
+    let headerRowIdx = -1;
+    let headerMapping = null;
+
+    console.log("Analyzing CSV lines for headers...");
+    for (let i = 0; i < Math.min(validLines.length, 50); i++) {
+        const mapping = mapStatementHeaders(validLines[i]);
+        console.log(`Row ${i} mapping:`, mapping, "Content:", validLines[i]);
+        if (mapping.dateIdx !== -1 && mapping.descIdx !== -1 && (mapping.debitIdx !== -1 || mapping.creditIdx !== -1 || mapping.amountIdx !== -1)) {
+            headerRowIdx = i;
+            headerMapping = mapping;
+            console.log(`Matched CSV header row at index ${i}!`, headerMapping);
+            break;
+        }
+    }
+
+    if (headerRowIdx === -1) {
+        throw new Error('Unable to identify header columns (Date, Description, Debit/Credit). Please verify columns.');
+    }
+
+    const dataRows = validLines.slice(headerRowIdx + 1);
+    normalizeStatementRows(dataRows, headerMapping, bankAccount);
+}
+
+function parseExcelStatement(sheetData, bankAccount) {
+    if (!sheetData || sheetData.length === 0) {
+        throw new Error('Excel sheet appears to be empty.');
+    }
+
+    // Auto-detect header row
+    let headerRowIdx = -1;
+    let headerMapping = null;
+
+    console.log("Analyzing Excel lines for headers...");
+    for (let i = 0; i < Math.min(sheetData.length, 50); i++) {
+        const row = sheetData[i];
+        if (!row || row.length === 0) continue;
+        const mapping = mapStatementHeaders(row);
+        console.log(`Row ${i} mapping:`, mapping, "Content:", row);
+        if (mapping.dateIdx !== -1 && mapping.descIdx !== -1 && (mapping.debitIdx !== -1 || mapping.creditIdx !== -1 || mapping.amountIdx !== -1)) {
+            headerRowIdx = i;
+            headerMapping = mapping;
+            console.log(`Matched Excel header row at index ${i}!`, headerMapping);
+            break;
+        }
+    }
+
+    if (headerRowIdx === -1) {
+        throw new Error('Unable to identify header columns in Excel sheet.');
+    }
+
+    const dataRows = sheetData.slice(headerRowIdx + 1);
+    normalizeStatementRows(dataRows, headerMapping, bankAccount);
+}
+
+function mapStatementHeaders(row) {
+    const mapping = {
+        dateIdx: -1,
+        descIdx: -1,
+        debitIdx: -1,
+        creditIdx: -1,
+        amountIdx: -1
+    };
+
+    row.forEach((col, idx) => {
+        if (col === null || col === undefined) return;
+        const val = col.toString().toLowerCase().trim();
+
+        if (val === 'date' || val === 'dt' || val === 'txn date' || val === 'value date' || val.includes('date') || val.includes('dt')) {
+            mapping.dateIdx = idx;
+        }
+        if (val.includes('narration') || val.includes('description') || val.includes('particulars') || val.includes('particular') || val === 'remarks' || val === 'details' || val === 'desc') {
+            mapping.descIdx = idx;
+        }
+        if (val.includes('debit') || val.includes('withdrawal') || val === 'dr' || val === 'payment' || val.includes('out') || val.includes('wdr') || val.includes('dr.') || val === 'withdrawal amount') {
+            mapping.debitIdx = idx;
+        }
+        if (val.includes('credit') || val.includes('deposit') || val === 'cr' || val === 'receipt' || val.includes('in') || val.includes('cr.') || val === 'deposit amount') {
+            mapping.creditIdx = idx;
+        }
+        if (val === 'amount' || val.includes('amount') || val.includes('amt') || val.includes('value')) {
+            mapping.amountIdx = idx;
+        }
+    });
+
+    return mapping;
+}
+function normalizeStatementRows(rows, mapping, bankAccount) {
+    importedTransactions = [];
+
+    rows.forEach((row) => {
+        if (!row || row.length === 0) return;
+
+        // Skip rows that don't have date or description
+        const rawDate = row[mapping.dateIdx];
+        const rawDesc = row[mapping.descIdx];
+        if (!rawDate || !rawDesc) return;
+
+        // Extract Amounts
+        let debit = 0;
+        let credit = 0;
+
+        if (mapping.debitIdx !== -1) {
+            debit = parseNumericAmount(row[mapping.debitIdx]);
+        }
+        if (mapping.creditIdx !== -1) {
+            credit = parseNumericAmount(row[mapping.creditIdx]);
+        }
+
+        // Single Amount column fallback
+        if (debit === 0 && credit === 0 && mapping.amountIdx !== -1) {
+            const amt = parseNumericAmount(row[mapping.amountIdx]);
+            if (amt > 0) {
+                // Determine direction based on sign or other columns
+                // In most single-column statements, debit might be negative
+                if (row[mapping.amountIdx].toString().includes('-') || row.some(cell => cell && cell.toString().toLowerCase() === 'debit')) {
+                    debit = amt;
+                } else {
+                    credit = amt;
+                }
+            }
+        }
+
+        // If both are 0, skip
+        if (debit === 0 && credit === 0) return;
+
+        const date = parseStatementDate(rawDate);
+        const type = debit > 0 ? 'Expense' : 'Income';
+        const amount = debit > 0 ? debit : credit;
+        const description = rawDesc.toString().trim();
+        
+        // Extract Vendor / Customer Party name
+        const party = detectImportParty(description, type);
+
+        // Check Duplicates
+        const isDuplicate = checkImportDuplicate(date, amount, bankAccount, description, type);
+
+        importedTransactions.push({
+            date: date.toISOString().slice(0, 10), // YYYY-MM-DD
+            type,
+            bankAccount,
+            party,
+            amount,
+            description,
+            status: isDuplicate ? 'Duplicate' : (party.includes('Unidentified') ? 'Needs Review' : 'New'),
+            selected: !isDuplicate // uncheck duplicates by default
+        });
+    });
+
+    if (importedTransactions.length === 0) {
+        alert('No valid transactions found in statement.');
+        return;
+    }
+
+    // Toggle Panels
+    document.getElementById('import-upload-card').style.display = 'none';
+    document.getElementById('import-review-card').style.display = 'block';
+
+    renderImportReviewTable();
+}
+
+function parseNumericAmount(val) {
+    if (val === null || val === undefined) return 0;
+    // Remove currency symbols, commas, spaces
+    const clean = val.toString().replace(/[^\d\.-]/g, '');
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : Math.abs(num);
+}
+
+function parseStatementDate(dateStr) {
+    if (!dateStr) return new Date();
+    let cleaned = dateStr.toString().trim();
+    
+    let d = new Date(cleaned);
+    if (!isNaN(d.getTime())) return d;
+
+    // Common Indian format DD/MM/YYYY or DD-MM-YYYY
+    let matches = cleaned.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})/);
+    if (matches) {
+        let day = parseInt(matches[1], 10);
+        let month = parseInt(matches[2], 10) - 1;
+        let year = parseInt(matches[3], 10);
+        if (year < 100) {
+            year += year < 50 ? 2000 : 1900;
+        }
+        let parsed = new Date(year, month, day);
+        if (!isNaN(parsed.getTime())) return parsed;
+    }
+
+    return new Date();
+}
+
+function detectImportParty(description, type) {
+    if (!description) return type === 'Expense' ? 'Unidentified Vendor' : 'Unidentified Customer';
+    let clean = description.toUpperCase();
+
+    // Noise removals
+    const noise = [
+        /UPI-/, /UPI\//, /IMPS-/, /IMPS\//, /NEFT-/, /NEFT\//, /RTGS-/, /RTGS\//,
+        /TRANSFER TO/, /TRANSFER FROM/, /TRANSFER-/, /TRF TO/, /TRF FROM/,
+        /DEBIT:/, /CREDIT:/, /BY CASH/, /TO CASH/, /CASH DEP/, /CASH WDL/,
+        /PAYTM\*/, /GPay\*/, /PHONEPE\*/, /AMAZON\*/, /RAZORPAY\*/, /STRIPE\*/,
+        /\/\d+/, /-\d+/, /\b\d{6,}\b/
+    ];
+
+    noise.forEach(r => {
+        clean = clean.replace(r, ' ');
+    });
+
+    clean = clean.replace(/[^A-Z0-9\s]/g, ' ');
+    clean = clean.trim();
+
+    let words = clean.split(/\s+/).filter(w => w.length > 1 && !/^\d+$/.test(w));
+    if (words.length === 0) {
+        return type === 'Expense' ? 'Unidentified Vendor' : 'Unidentified Customer';
+    }
+
+    let name = words.slice(0, 3).join(' ');
+    return name.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function checkImportDuplicate(date, amount, bankAccount, description, type) {
+    const list = type === 'Expense' ? db.getExpenses() : db.getIncomes();
+    const dateStr = date.toISOString().slice(0, 10);
+
+    return list.some(item => {
+        const itemDateStr = new Date(item.createdAt || item.date).toISOString().slice(0, 10);
+        const itemAmount = Number(item.amount);
+        const itemBank = item.bankAccount;
+        
+        // Match exact Date, Amount, BankAccount, and check description similarity or exact match
+        const amtMatch = Math.abs(itemAmount - amount) < 0.01;
+        const dateMatch = itemDateStr === dateStr;
+        const bankMatch = itemBank === bankAccount;
+        
+        return amtMatch && dateMatch && bankMatch;
+    });
+}
+
+function renderImportReviewTable() {
+    const tbody = document.getElementById('import-review-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    let checkedCount = 0;
+
+    importedTransactions.forEach((txn, idx) => {
+        if (txn.selected) checkedCount++;
+
+        let rowClass = 'import-row-new';
+        let badgeClass = 'badge-import-new';
+        if (txn.status === 'Duplicate') {
+            rowClass = 'import-row-duplicate';
+            badgeClass = 'badge-import-duplicate';
+        } else if (txn.status === 'Needs Review') {
+            rowClass = 'import-row-review';
+            badgeClass = 'badge-import-review';
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = rowClass;
+        tr.style.borderBottom = '1px solid var(--border-color)';
+        
+        tr.innerHTML = `
+            <td style="padding: 12px 16px; text-align: center;">
+                <input type="checkbox" ${txn.selected ? 'checked' : ''} onchange="toggleSelectImportRow(${idx}, this.checked)">
+            </td>
+            <td style="padding: 12px 16px;">${txn.date}</td>
+            <td style="padding: 12px 16px; font-weight:700; color: ${txn.type === 'Income' ? 'var(--success)' : 'var(--danger)'};">${txn.type}</td>
+            <td style="padding: 12px 16px; font-weight:600;">${txn.party}</td>
+            <td style="padding: 12px 16px; font-weight:700;">₹${txn.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td style="padding: 12px 16px; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${txn.description}">${txn.description}</td>
+            <td style="padding: 12px 16px;"><span class="${badgeClass}">${txn.status}</span></td>
+            <td style="padding: 12px 16px; text-align: center;">
+                <div style="display:flex; gap:6px; justify-content:center;">
+                    <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.7rem; height: 24px;" onclick="editImportRow(${idx})">Edit</button>
+                    <button class="btn btn-danger" style="padding: 2px 8px; font-size: 0.7rem; height: 24px;" onclick="skipImportRow(${idx})">${txn.selected ? 'Skip' : 'Include'}</button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('import-checked-count').textContent = checkedCount;
+}
+
+function toggleSelectImportRow(idx, checked) {
+    if (importedTransactions[idx]) {
+        importedTransactions[idx].selected = checked;
+        renderImportReviewTable();
+    }
+}
+
+function toggleSelectAllImport(checked) {
+    importedTransactions.forEach(txn => {
+        // Don't auto-check duplicates even on select-all to avoid bulk duplicate inserts
+        if (txn.status !== 'Duplicate' || !checked) {
+            txn.selected = checked;
+        }
+    });
+    renderImportReviewTable();
+}
+
+function skipImportRow(idx) {
+    if (importedTransactions[idx]) {
+        importedTransactions[idx].selected = !importedTransactions[idx].selected;
+        renderImportReviewTable();
+    }
+}
+
+function editImportRow(idx) {
+    const txn = importedTransactions[idx];
+    if (!txn) return;
+
+    document.getElementById('import-edit-index').value = idx;
+    document.getElementById('import-edit-date').value = txn.date;
+    document.getElementById('import-edit-type').value = txn.type;
+    document.getElementById('import-edit-party').value = txn.party;
+    document.getElementById('import-edit-amount').value = txn.amount;
+    document.getElementById('import-edit-desc').value = txn.description;
+
+    document.getElementById('import-edit-modal-overlay').style.display = 'flex';
+}
+
+function closeImportEditModal() {
+    document.getElementById('import-edit-modal-overlay').style.display = 'none';
+}
+
+function saveImportRowEdit(event) {
+    event.preventDefault();
+    const idx = parseInt(document.getElementById('import-edit-index').value, 10);
+    if (isNaN(idx) || !importedTransactions[idx]) return;
+
+    const txn = importedTransactions[idx];
+    txn.date = document.getElementById('import-edit-date').value;
+    txn.type = document.getElementById('import-edit-type').value;
+    txn.party = document.getElementById('import-edit-party').value.trim();
+    txn.amount = parseFloat(document.getElementById('import-edit-amount').value);
+    txn.description = document.getElementById('import-edit-desc').value.trim();
+
+    // Re-verify status
+    if (txn.status === 'Needs Review' && !txn.party.includes('Unidentified')) {
+        txn.status = 'New';
+    }
+
+    closeImportEditModal();
+    renderImportReviewTable();
+}
+
+function cancelImport() {
+    if (confirm('Are you sure you want to discard these imported transactions?')) {
+        initBankImportView();
+    }
+}
+
+async function saveImportedTransactions() {
+    const activeTxns = importedTransactions.filter(txn => txn.selected);
+    if (activeTxns.length === 0) {
+        alert('Please select at least one transaction to import.');
+        return;
+    }
+
+    let successCount = 0;
+    let failedCount = 0;
+    let lastError = null;
+
+    for (const txn of activeTxns) {
+        const createdAt = new Date(txn.date).toISOString();
+        if (txn.type === 'Expense') {
+            const expenseObj = {
+                id: 'EXP-' + String(db.getExpenses().length + 1).padStart(3, '0') + '-' + Math.floor(Math.random()*1000),
+                vendorId: txn.party,
+                projectId: 'prj-none',
+                category: 'Other',
+                amount: txn.amount,
+                tax: Math.round(txn.amount * 0.18),
+                gst: '',
+                bankAccount: txn.bankAccount,
+                paymentMethod: txn.bankAccount,
+                transactionNo: '',
+                description: txn.description,
+                createdBy: currentUser.id,
+                approvedBy: '',
+                status: 'Paid',
+                attachments: [],
+                createdAt,
+                updatedAt: new Date().toISOString()
+            };
+            try {
+                await db.saveExpense(expenseObj);
+                successCount++;
+            } catch (err) {
+                console.error(err);
+                failedCount++;
+                lastError = err;
+            }
+        } else if (txn.type === 'Income') {
+            const incomeObj = {
+                id: 'INC-' + String(db.getIncomes().length + 1).padStart(3, '0') + '-' + Math.floor(Math.random()*1000),
+                amount: txn.amount,
+                customer: txn.party,
+                bankAccount: txn.bankAccount,
+                date: createdAt,
+                description: txn.description,
+                attachments: []
+            };
+            try {
+                await db.saveIncome(incomeObj);
+                successCount++;
+            } catch (err) {
+                console.error(err);
+                failedCount++;
+                lastError = err;
+            }
+        }
+    }
+
+    if (failedCount > 0) {
+        alert(`Successfully imported ${successCount} transactions.\nFailed to import ${failedCount} transactions due to database error: ${lastError.message}`);
+    } else {
+        alert(`Import completed! Successfully saved ${successCount} transactions to Supabase.`);
+        confetti({ particleCount: 60, spread: 50 });
+    }
+
+    initBankImportView();
+    initApp();
+    switchView('dashboard');
 }
