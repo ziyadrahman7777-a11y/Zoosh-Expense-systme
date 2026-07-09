@@ -25,6 +25,12 @@ CREATE TABLE IF NOT EXISTS public.incomes (
 -- Enable RLS on public.incomes
 ALTER TABLE public.incomes ENABLE ROW LEVEL SECURITY;
 
+-- Drop Policies if they exist to allow re-running the script
+DROP POLICY IF EXISTS "Allow public read access to incomes" ON public.incomes;
+DROP POLICY IF EXISTS "Allow public write access to incomes" ON public.incomes;
+DROP POLICY IF EXISTS "Allow public update access to incomes" ON public.incomes;
+DROP POLICY IF EXISTS "Allow public delete access to incomes" ON public.incomes;
+
 -- Create Policies for public.incomes
 CREATE POLICY "Allow public read access to incomes" ON public.incomes FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Allow public write access to incomes" ON public.incomes FOR INSERT TO anon, authenticated WITH CHECK (true);
@@ -48,6 +54,12 @@ CREATE TABLE IF NOT EXISTS public.transfers (
 
 -- Enable RLS on public.transfers
 ALTER TABLE public.transfers ENABLE ROW LEVEL SECURITY;
+
+-- Drop Policies if they exist to allow re-running the script
+DROP POLICY IF EXISTS "Allow public read access to transfers" ON public.transfers;
+DROP POLICY IF EXISTS "Allow public write access to transfers" ON public.transfers;
+DROP POLICY IF EXISTS "Allow public update access to transfers" ON public.transfers;
+DROP POLICY IF EXISTS "Allow public delete access to transfers" ON public.transfers;
 
 -- Create Policies for public.transfers
 CREATE POLICY "Allow public read access to transfers" ON public.transfers FOR SELECT TO anon, authenticated USING (true);
