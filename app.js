@@ -3152,52 +3152,59 @@ function exportProjectsPDF() {
 // ========================================================
 // SUPABASE SYNC INTEGRATION CONTROLLER MODULE
 // ========================================================
-function openSupabaseModal() {
-    const overlay = document.getElementById('supabase-modal-overlay');
-    if (!overlay) return;
-    overlay.style.display = 'flex';
-    
-    // Prefill credentials if already saved
-    const url = localStorage.getItem('supabase_url') || '';
-    const key = localStorage.getItem('supabase_key') || '';
-    document.getElementById('supabase-url-input').value = url;
-    document.getElementById('supabase-key-input').value = key;
-    
-    const statusDiv = document.getElementById('supabase-conn-status');
-    statusDiv.style.display = 'none';
-}
-
-function closeSupabaseModal() {
-    const overlay = document.getElementById('supabase-modal-overlay');
-    if (overlay) overlay.style.display = 'none';
-}
+const SUPABASE_CONFIG = {
+    url: 'https://bxqqwvlxcnoktctobxwk.supabase.co',
+    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4cXF3dmx4Y25va3RjdG9ieHdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MDAwMzIsImV4cCI6MjA5OTA3NjAzMn0.Q1oBnhaP8_z6yczBv6sIyb8mPRBeb3BQUclbncq2xM8'
+};
 
 function initSupabase() {
-    // Automatically enforce and overwrite the shared project credentials on startup
-    const targetUrl = 'https://bxqqwvlxcnoktctobxwk.supabase.co';
-    const targetKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4cXF3dmx4Y25va3RjdG9ieHdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MDAwMzIsImV4cCI6MjA5OTA3NjAzMn0.Q1oBnhaP8_z6yczBv6sIyb8mPRBeb3BQUclbncq2xM8';
-    
-    localStorage.setItem('supabase_url', targetUrl);
-    localStorage.setItem('supabase_key', targetKey);
-
-    const syncBadge = document.getElementById('menu-supabase-sync');
     if (typeof supabase !== 'undefined') {
         try {
-            supabaseClient = supabase.createClient(targetUrl, targetKey);
-            if (syncBadge) {
-                syncBadge.querySelector('i').setAttribute('data-lucide', 'cloud');
-                syncBadge.querySelector('span').textContent = 'Cloud Active';
-                syncBadge.style.opacity = '1';
-                lucide.createIcons();
-            }
+            supabaseClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
+            
             // Asynchronously fetch the latest database updates
             pullFromSupabase();
+            
             // Start real-time listening
             setupRealtimeSubscriptions();
         } catch (e) {
             console.error("Failed to init Supabase client:", e);
+            showOfflineNotification();
         }
     }
+}
+
+function showOfflineNotification() {
+    // Avoid spawning duplicate banners
+    if (document.getElementById('supabase-offline-banner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'supabase-offline-banner';
+    banner.style.position = 'fixed';
+    banner.style.top = '20px';
+    banner.style.left = '50%';
+    banner.style.transform = 'translateX(-50%)';
+    banner.style.backgroundColor = '#EF4444';
+    banner.style.color = '#FFFFFF';
+    banner.style.padding = '12px 24px';
+    banner.style.borderRadius = '30px';
+    banner.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
+    banner.style.zIndex = '100000';
+    banner.style.fontSize = '0.9rem';
+    banner.style.fontWeight = '700';
+    banner.style.display = 'flex';
+    banner.style.alignItems = 'center';
+    banner.style.gap = '8px';
+    banner.style.transition = 'all 0.3s ease';
+    banner.innerHTML = `<i data-lucide="alert-circle" style="width: 18px; height: 18px;"></i> Unable to connect to the database. Please try again later.`;
+    
+    document.body.appendChild(banner);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    
+    setTimeout(() => {
+        banner.style.opacity = '0';
+        setTimeout(() => banner.remove(), 300);
+    }, 6000);
 }
 
 function setupRealtimeSubscriptions() {
@@ -3220,117 +3227,6 @@ function setupRealtimeSubscriptions() {
             .subscribe();
     } catch (err) {
         console.error("Error setting up Real-time subscriptions:", err);
-    }
-}
-
-async function saveSupabaseSettings() {
-    const url = document.getElementById('supabase-url-input').value.trim();
-    const key = document.getElementById('supabase-key-input').value.trim();
-    const statusDiv = document.getElementById('supabase-conn-status');
-    const connectBtn = document.getElementById('supabase-connect-btn');
-    
-    if (!url || !key) {
-        statusDiv.style.display = 'block';
-        statusDiv.style.backgroundColor = '#FEE2E2';
-        statusDiv.style.color = '#EF4444';
-        statusDiv.textContent = 'Please enter both Supabase URL and Anon Key.';
-        return;
-    }
-    
-    statusDiv.style.display = 'block';
-    statusDiv.style.backgroundColor = '#DBEAFE';
-    statusDiv.style.color = '#3B82F6';
-    statusDiv.textContent = 'Testing connection & syncing data...';
-    connectBtn.disabled = true;
-    
-    try {
-        const testClient = supabase.createClient(url, key);
-        // Test query on users table
-        const { data, error } = await testClient.from('users').select('count', { count: 'exact', head: true });
-        
-        if (error) {
-            throw new Error(error.message);
-        }
-        
-        // Save to settings
-        localStorage.setItem('supabase_url', url);
-        localStorage.setItem('supabase_key', key);
-        supabaseClient = testClient;
-        
-        statusDiv.style.backgroundColor = '#D1FAE5';
-        statusDiv.style.color = '#10B981';
-        statusDiv.textContent = 'Connected successfully! Syncing records...';
-        
-        const syncBadge = document.getElementById('menu-supabase-sync');
-        if (syncBadge) {
-            syncBadge.querySelector('i').setAttribute('data-lucide', 'cloud');
-            syncBadge.querySelector('span').textContent = 'Cloud Active';
-            syncBadge.style.opacity = '1';
-            lucide.createIcons();
-        }
-        
-        // Trigger bidirectional synchronization
-        await pushLocalDataToSupabase();
-        await pullFromSupabase();
-        
-        setTimeout(() => {
-            closeSupabaseModal();
-            connectBtn.disabled = false;
-        }, 1200);
-        
-    } catch (err) {
-        console.error("Supabase Connection test failed:", err);
-        statusDiv.style.backgroundColor = '#FEE2E2';
-        statusDiv.style.color = '#EF4444';
-        statusDiv.textContent = 'Connection failed. Verify your SQL Schema setup and credentials.';
-        connectBtn.disabled = false;
-    }
-}
-
-// Push all existing local data to Supabase (ran on initial connect setup)
-async function pushLocalDataToSupabase() {
-    if (!supabaseClient) return;
-    try {
-        const users = db.getUsers();
-        const vendors = db.getVendors();
-        const projects = db.getProjects();
-        const expenses = db.getExpenses();
-        const txns = db.getTransactions();
-        const incomes = db.getIncomes();
-        const transfers = db.getTransfers();
-        
-        // Push Users
-        for (const u of users) {
-            await pushToSupabase('users', u);
-        }
-        // Push Vendors
-        for (const v of vendors) {
-            await pushToSupabase('vendors', v);
-        }
-        // Push Projects
-        for (const p of projects) {
-            await pushToSupabase('projects', p);
-        }
-        // Push Expenses
-        for (const e of expenses) {
-            await pushToSupabase('expenses', e);
-        }
-        // Push Transactions
-        for (const t of txns) {
-            await pushToSupabase('transactions', t);
-        }
-        // Push Incomes
-        for (const i of incomes) {
-            await pushToSupabase('incomes', i);
-        }
-        // Push Transfers
-        for (const tr of transfers) {
-            await pushToSupabase('transfers', tr);
-        }
-        
-        console.log("One-time local storage database push to Supabase complete.");
-    } catch (e) {
-        console.error("Local data migration fail:", e);
     }
 }
 

@@ -76,12 +76,7 @@
                         <span>Reports & Trends</span>
                     </a>
                 </li>
-                <li class="menu-item" id="menu-supabase-sync" style="opacity: 0.7;">
-                    <a href="#" onclick="openSupabaseModal()">
-                        <i data-lucide="cloud-lightning" style="color: #3ECF8E;"></i>
-                        <span style="color: #3ECF8E; font-weight: 700;">Supabase Sync</span>
-                    </a>
-                </li>
+
             </ul>
 
             <div class="sidebar-footer">
@@ -864,42 +859,7 @@
         </div>
     </div>
 
-    <!-- Supabase Config Modal Dialog -->
-    <div class="detail-overlay" id="supabase-modal-overlay" style="display:none; justify-content:center; align-items:center; z-index:9999;">
-        <div class="detail-modal" style="max-width: 480px; width: 90%; background-color: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg);">
-            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 16px 20px;">
-                <div class="modal-header-left" style="display:flex; align-items:center; gap:8px;">
-                    <i data-lucide="cloud-lightning" style="color: #3ECF8E; width: 20px; height: 20px;"></i>
-                    <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--primary);">Supabase Integration</h3>
-                </div>
-                <button class="modal-close-btn" onclick="closeSupabaseModal()" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i data-lucide="x"></i></button>
-            </div>
-            
-            <div class="modal-body" style="padding: 20px;">
-                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; margin-top: 0;">
-                    Connect your ZOOSH Finance workspace to a Supabase database. Retrieve your credentials from your <strong>Supabase Dashboard > Project Settings > API</strong>.
-                </p>
 
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label class="form-label" style="font-weight: 700; margin-bottom:6px; display:block;">Supabase Project URL</label>
-                    <input type="text" id="supabase-url-input" class="form-control" placeholder="https://your-project-id.supabase.co" style="width: 100%; box-sizing: border-box;">
-                </div>
-
-                <div class="form-group" style="margin-bottom: 24px;">
-                    <label class="form-label" style="font-weight: 700; margin-bottom:6px; display:block;">Supabase Anon API Key</label>
-                    <input type="password" id="supabase-key-input" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." style="width: 100%; box-sizing: border-box;">
-                </div>
-
-                <div id="supabase-conn-status" style="margin-bottom: 20px; padding: 12px; border-radius: 8px; font-size: 0.8rem; display: none; text-align: center; font-weight: bold;">
-                </div>
-
-                <div class="button-row" style="display: flex; gap: 12px; justify-content: flex-end;">
-                    <button type="button" class="btn btn-secondary" onclick="closeSupabaseModal()">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="supabase-connect-btn" onclick="saveSupabaseSettings()" style="background-color: #3ECF8E; border-color: #3ECF8E; color: #111;">Connect & Sync</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- External Library Scripts -->
     <script src="https://unpkg.com/lucide@latest"></script>
