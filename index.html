@@ -68,12 +68,7 @@
                         <span>Add Expense</span>
                     </a>
                 </li>
-                <li class="menu-item" data-view="vendors">
-                    <a href="#">
-                        <i data-lucide="users"></i>
-                        <span>Vendors</span>
-                    </a>
-                </li>
+
                 <li class="menu-item" data-view="projects">
                     <a href="#">
                         <i data-lucide="briefcase"></i>
@@ -506,16 +501,9 @@
                             <div class="form-grid">
                                 <!-- Vendor Field -->
                                 <div class="form-group">
-                                    <label class="form-label" for="exp-vendor">Vendor / Supplier <span>*</span></label>
-                                    <div class="inline-action-group">
-                                        <select id="exp-vendor" class="select-control" required style="flex:1;">
-                                            <option value="">Select Vendor</option>
-                                        </select>
-                                        <button type="button" class="btn-inline-secondary" onclick="handleCreateCustomVendor()">
-                                            <i data-lucide="plus"></i> New Vendor
-                                        </button>
-                                    </div>
-                                </div>
+                                <label class="form-label" for="exp-vendor">Vendor / Supplier <span>*</span></label>
+                                <input type="text" id="exp-vendor" class="input-control" placeholder="Enter shop / vendor name manually" required>
+                            </div>
 
                                 <!-- Predefined Bank Account Dropdown -->
                                 <div class="form-group">
@@ -727,21 +715,7 @@
                     </div>
                 </section>
 
-                <!-- 4. VENDORS VIEW -->
-                <section class="view-section" id="view-vendors">
-                    <div class="block-header" style="margin-bottom: 24px;">
-                        <h3 class="block-title"><i data-lucide="users"></i> Supplier & Vendor Directory</h3>
-                        <div style="display:flex; gap:12px;">
-                            <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="exportVendorsPDF()">
-                                <i data-lucide="file-text" style="width: 16px; height: 16px; color: var(--primary);"></i> Export PDF
-                            </button>
-                            <button class="btn btn-primary" onclick="handleCreateCustomVendor()"><i data-lucide="plus"></i> Create Vendor</button>
-                        </div>
-                    </div>
-                    <div class="cards-list-grid" id="vendors-cards-grid">
-                        <!-- Populated dynamically -->
-                    </div>
-                </section>
+
 
                 <!-- 5. PROJECTS VIEW -->
                 <section class="view-section" id="view-projects">
@@ -867,10 +841,7 @@
             <i data-lucide="briefcase"></i>
             <span>Projects</span>
         </a>
-        <a href="#" class="mobile-nav-item" data-view="vendors">
-            <i data-lucide="users"></i>
-            <span>Vendors</span>
-        </a>
+
         <a href="#" class="mobile-nav-item" data-view="reports">
             <i data-lucide="pie-chart"></i>
             <span>Reports</span>

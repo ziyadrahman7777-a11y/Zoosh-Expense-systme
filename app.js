@@ -310,19 +310,11 @@ function updateUserContext() {
 }
 
 function populateSelectDropdowns() {
-    const vendors = db.getVendors();
+    const expenses = db.getExpenses();
     const projects = db.getProjects();
     const customCats = db.getCustomCategories();
     
-    // Add Expense dropdowns
-    const expVendor = document.getElementById('exp-vendor');
-    if (expVendor) {
-        expVendor.innerHTML = '<option value="">Select Vendor</option>';
-        vendors.forEach(v => {
-            expVendor.innerHTML += `<option value="${v.id}">${v.name}</option>`;
-        });
-    }
-
+    // Add Expense dropdowns (if exists)
     const expProject = document.getElementById('exp-project');
     if (expProject) {
         expProject.innerHTML = '<option value="">Select Project (Optional)</option>';
@@ -331,7 +323,7 @@ function populateSelectDropdowns() {
         });
     }
 
-    // Populate category dropdown
+    // Populate category dropdown (if exists)
     const expCategory = document.getElementById('exp-category');
     if (expCategory) {
         expCategory.innerHTML = '<option value="">Select Category</option>';
@@ -351,8 +343,9 @@ function populateSelectDropdowns() {
     const filterVendor = document.getElementById('filter-vendor');
     if (filterVendor) {
         filterVendor.innerHTML = '<option value="all">All Vendors</option>';
-        vendors.forEach(v => {
-            filterVendor.innerHTML += `<option value="${v.id}">${v.name}</option>`;
+        const uniqueVendors = [...new Set(expenses.map(e => e.vendorId).filter(Boolean))];
+        uniqueVendors.sort().forEach(v => {
+            filterVendor.innerHTML += `<option value="${v}">${v}</option>`;
         });
     }
 
@@ -486,7 +479,7 @@ function renderDashboard() {
         .filter(e => new Date(e.createdAt) >= startOfMonth && e.status !== 'Rejected' && e.status !== 'Cancelled')
         .reduce((sum, e) => sum + Number(e.amount), 0);
 
-    const supplierOutstanding = vendors.reduce((sum, v) => sum + v.outstandingAmount, 0);
+    const supplierOutstanding = expenses.filter(e => e.status !== 'Paid' && e.status !== 'Rejected' && e.status !== 'Cancelled').reduce((sum, e) => sum + Number(e.amount), 0);
 
     // Update UI Cards
     const todayExpEl = document.getElementById('dash-today-expenses');
@@ -567,7 +560,7 @@ function renderDashboard() {
             recentList.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">No recent expenses.</div>';
         } else {
             recentExpenses.forEach(exp => {
-                const vendorName = vendors.find(v => v.id === exp.vendorId)?.name || 'Unknown Vendor';
+                const vendorName = vendors.find(v => v.id === exp.vendorId)?.name || exp.vendorId || 'Unknown Vendor';
                 const projectName = projects.find(p => p.id === exp.projectId)?.name || 'No Project';
                 const timeString = new Date(exp.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 
@@ -742,7 +735,7 @@ function renderExpensesList() {
     if (expenseFilterSearch.trim()) {
         const query = expenseFilterSearch.toLowerCase();
         filtered = filtered.filter(e => {
-            const vName = (vendors.find(v => v.id === e.vendorId)?.name || '').toLowerCase();
+            const vName = (vendors.find(v => v.id === e.vendorId)?.name || e.vendorId || '').toLowerCase();
             const pName = (projects.find(p => p.id === e.projectId)?.name || '').toLowerCase();
             return (
                 e.id.toLowerCase().includes(query) ||
@@ -791,7 +784,7 @@ function renderExpensesList() {
         }
     } else {
         filtered.forEach(exp => {
-            const vendorName = vendors.find(v => v.id === exp.vendorId)?.name || 'Unknown Vendor';
+            const vendorName = vendors.find(v => v.id === exp.vendorId)?.name || exp.vendorId || 'Unknown Vendor';
             const projectName = projects.find(p => p.id === exp.projectId)?.name || 'No Project';
             const dateStr = new Date(exp.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             const createdByUser = users.find(u => u.id === exp.createdBy)?.name || 'Staff';
@@ -1129,7 +1122,7 @@ function viewExpenseDetail(expenseId) {
     statusBadge.className = `badge ${exp.status.toLowerCase()}`;
     statusBadge.textContent = exp.status;
 
-    document.getElementById('det-vendor').textContent = vendor.name;
+    document.getElementById('det-vendor').textContent = vendor.name !== 'Unknown' ? vendor.name : (exp.vendorId || 'Unknown');
     document.getElementById('det-bank-account').textContent = exp.bankAccount || exp.paymentMethod || 'HDFC Current Account';
     document.getElementById('det-description').textContent = exp.description || 'No description provided.';
     document.getElementById('det-date').textContent = new Date(exp.createdAt).toLocaleString();
@@ -1284,18 +1277,7 @@ function changeStatusAction(expId, newStatus) {
     exp.status = newStatus;
     exp.approvedBy = currentUser.id;
     exp.updatedAt = new Date().toISOString();
-    
-    // Auto-update outstanding balances on vendor side
-    if (newStatus === 'Paid') {
-        const vendor = db.getVendors().find(v => v.id === exp.vendorId);
-        if (vendor) {
-            vendor.outstandingAmount = Math.max(0, vendor.outstandingAmount - exp.amount);
-            const vendors = db.getVendors();
-            const index = vendors.findIndex(v => v.id === vendor.id);
-            vendors[index] = vendor;
-            db.setData('zoosh_vendors', vendors);
-        }
-    }
+
 
     db.saveExpense(exp);
 
@@ -1395,7 +1377,7 @@ function saveExpenseForm(event) {
         category: 'Other',
         amount,
         tax: Math.round(amount * 0.18), // 18% default GST calculation
-        gst: db.getVendors().find(v => v.id === vendorId)?.gst || '',
+        gst: '',
         bankAccount,
         paymentMethod: bankAccount,
         transactionNo: '',
@@ -1545,7 +1527,7 @@ function simulateOCRScan(file) {
         
         // Fill form fields
         document.getElementById('exp-amount').value = randAmount;
-        document.getElementById('exp-vendor').value = randVendor.id;
+        document.getElementById('exp-vendor').value = randVendor.name;
         document.getElementById('exp-category').value = randCat;
         document.getElementById('exp-payment').value = 'UPI';
         document.getElementById('exp-description').value = `Auto-scanned invoice from bill: ${file.name}. Validated GST ${randVendor.gst || 'detecting...'}`;
@@ -1618,7 +1600,7 @@ function exportReport(format) {
         filename += '.csv';
         content = 'Expense ID,Vendor,Bank Account,Amount,GST,Date,Description\n';
         expenses.forEach(e => {
-            const vName = vendors.find(v => v.id === e.vendorId)?.name || 'Unknown';
+            const vName = vendors.find(v => v.id === e.vendorId)?.name || e.vendorId || 'Unknown';
             const desc = (e.description || '').replace(/"/g, '""');
             content += `"${e.id}","${vName}","${e.bankAccount || e.paymentMethod}",${e.amount},${e.tax},"${e.createdAt}","${desc}"\n`;
         });
@@ -1627,7 +1609,7 @@ function exportReport(format) {
         filename += '.xls';
         content = '<table><tr><th>Expense ID</th><th>Vendor</th><th>Bank Account</th><th>Amount</th><th>GST</th><th>Description</th></tr>';
         expenses.forEach(e => {
-            const vName = vendors.find(v => v.id === e.vendorId)?.name || 'Unknown';
+            const vName = vendors.find(v => v.id === e.vendorId)?.name || e.vendorId || 'Unknown';
             content += `<tr><td>${e.id}</td><td>${vName}</td><td>${e.bankAccount || e.paymentMethod}</td><td>${e.amount}</td><td>${e.tax}</td><td>${e.description || ''}</td></tr>`;
         });
         content += '</table>';
@@ -1646,7 +1628,7 @@ function exportReport(format) {
         const transfersFromHafeez = transfers.filter(t => t.fromAccount === 'Hafeez Personal Account').reduce((sum, t) => sum + Number(t.amount), 0);
         const hafeezBalance = incomesToHafeez + transfersToHafeez - expensesFromHafeez - transfersFromHafeez;
 
-        const supplierOutstanding = vendors.reduce((sum, v) => sum + v.outstandingAmount, 0);
+        const supplierOutstanding = expenses.filter(e => e.status !== 'Paid' && e.status !== 'Rejected' && e.status !== 'Cancelled').reduce((sum, e) => sum + Number(e.amount), 0);
         const totalExpensesSum = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
         // Generate Expense Rows HTML
@@ -1655,7 +1637,7 @@ function exportReport(format) {
             expenseRows = '<tr><td colspan="6" style="text-align:center; color:#9CA3AF;">No expenses recorded yet.</td></tr>';
         } else {
             expenses.forEach(e => {
-                const vName = vendors.find(v => v.id === e.vendorId)?.name || 'Unknown';
+                const vName = vendors.find(v => v.id === e.vendorId)?.name || e.vendorId || 'Unknown';
                 const descHtml = e.description ? `<span class="desc-highlight">${e.description}</span>` : '<span style="color:#9CA3AF; font-size:0.75rem; font-style:italic;">No details provided</span>';
                 expenseRows += `
                     <tr>
@@ -2281,7 +2263,7 @@ function exportSingleExpensePDF(expenseId) {
     const exp = db.getExpenses().find(e => e.id === expenseId);
     if (!exp) return;
 
-    const vendor = db.getVendors().find(v => v.id === exp.vendorId) || { name: 'Unknown Vendor', phone: 'N/A', gst: 'N/A', address: 'N/A' };
+    const vendor = db.getVendors().find(v => v.id === exp.vendorId) || { name: exp.vendorId || 'Unknown Vendor', phone: 'N/A', gst: 'N/A', address: 'N/A' };
     const project = db.getProjects().find(p => p.id === exp.projectId) || { name: 'No Project (General Office)', client: 'N/A' };
     const creator = db.getUsers().find(u => u.id === exp.createdBy) || { name: 'Staff' };
     const approver = db.getUsers().find(u => u.id === exp.approvedBy) || { name: 'Pending Finalization' };
@@ -2616,7 +2598,7 @@ function exportExpensesPDF() {
     if (expenseFilterSearch.trim()) {
         const query = expenseFilterSearch.toLowerCase();
         filtered = filtered.filter(e => {
-            const vName = (vendors.find(v => v.id === e.vendorId)?.name || '').toLowerCase();
+            const vName = (vendors.find(v => v.id === e.vendorId)?.name || e.vendorId || '').toLowerCase();
             return (
                 e.id.toLowerCase().includes(query) ||
                 vName.includes(query) ||
@@ -2641,7 +2623,7 @@ function exportExpensesPDF() {
         rowsHtml = '<tr><td colspan="6" style="text-align:center; color:#9CA3AF;">No expenses matched the current filters.</td></tr>';
     } else {
         filtered.forEach(e => {
-            const vName = vendors.find(v => v.id === e.vendorId)?.name || 'Unknown';
+            const vName = vendors.find(v => v.id === e.vendorId)?.name || e.vendorId || 'Unknown';
             const dateStr = new Date(e.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
             const descHtml = e.description ? `<span class="desc-highlight">${e.description}</span>` : '<span style="color:#9CA3AF; font-size:0.75rem; font-style:italic;">No details provided</span>';
             rowsHtml += `
