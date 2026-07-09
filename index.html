@@ -69,12 +69,7 @@
                     </a>
                 </li>
 
-                <li class="menu-item" data-view="projects">
-                    <a href="#">
-                        <i data-lucide="briefcase"></i>
-                        <span>Projects</span>
-                    </a>
-                </li>
+
                 <li class="menu-item" data-view="reports">
                     <a href="#">
                         <i data-lucide="pie-chart"></i>
@@ -283,18 +278,7 @@
                         <!-- Left Main Column -->
                         <div class="dashboard-left">
                             
-                            <!-- Category Summaries -->
-                            <div class="card-block">
-                                <div class="block-header">
-                                    <h3 class="block-title">
-                                        <i data-lucide="grid"></i> Category Quick Summary
-                                    </h3>
-                                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Active Billing Totals</span>
-                                </div>
-                                <div class="category-summary-grid" id="category-totals-grid">
-                                    <!-- Populated dynamically -->
-                                </div>
-                            </div>
+
 
                             <!-- Recent Expenses -->
                             <div class="card-block">
@@ -367,16 +351,7 @@
                                 </div>
                             </div>                  </div>
 
-                            <!-- Projects Budgets tracking card -->
-                            <div class="card-block">
-                                <div class="block-header" style="margin-bottom: 16px;">
-                                    <h3 class="block-title" style="font-size: 1rem;"><i data-lucide="briefcase"></i> Project Budgets</h3>
-                                    <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="switchView('projects')">All</button>
-                                </div>
-                                <div style="display:flex; flex-direction:column; gap:16px;" id="projects-mini-list">
-                                    <!-- Populated dynamically -->
-                                </div>
-                            </div>
+
 
                         </div>
                 </section>
@@ -442,12 +417,7 @@
                                     <option value="Office">Office</option>
                                 </select>
                             </div>
-                            <div class="form-group-filter">
-                                <label for="filter-project">Project</label>
-                                <select id="filter-project" class="select-control">
-                                    <option value="all">All Projects</option>
-                                </select>
-                            </div>
+
                             <div class="form-group-filter">
                                 <label for="filter-payment">Payment Method</label>
                                 <select id="filter-payment" class="select-control">
@@ -717,21 +687,7 @@
 
 
 
-                <!-- 5. PROJECTS VIEW -->
-                <section class="view-section" id="view-projects">
-                    <div class="block-header" style="margin-bottom: 24px;">
-                        <h3 class="block-title"><i data-lucide="briefcase"></i> Project Progress & Budgets</h3>
-                        <div style="display:flex; gap:12px;">
-                            <button class="btn btn-secondary" style="padding: 0 16px; font-size: 0.85rem; height: 38px; display: flex; align-items: center; gap: 6px; border-radius: 20px; font-weight: 700;" onclick="exportProjectsPDF()">
-                                <i data-lucide="file-text" style="width: 16px; height: 16px; color: var(--primary);"></i> Export PDF
-                            </button>
-                            <button class="btn btn-primary" onclick="handleCreateCustomProject()"><i data-lucide="plus"></i> Create Project</button>
-                        </div>
-                    </div>
-                    <div class="cards-list-grid" id="projects-cards-grid">
-                        <!-- Populated dynamically -->
-                    </div>
-                </section>
+
 
                 <!-- 6. ANALYTICS & REPORTS VIEW -->
                 <section class="view-section" id="view-reports">
@@ -791,13 +747,9 @@
 
                     <!-- Top Tables Grid -->
                     <div class="charts-grid-wrapper">
-                        <div class="card-block">
+                        <div class="card-block" style="grid-column: 1 / -1;">
                             <h3 class="block-title" style="margin-bottom: 16px;"><i data-lucide="grid"></i> Top Categories</h3>
                             <div id="top-categories-list"></div>
-                        </div>
-                        <div class="card-block">
-                            <h3 class="block-title" style="margin-bottom: 16px;"><i data-lucide="briefcase"></i> Top Projects (Budget Used)</h3>
-                            <div id="top-projects-list"></div>
                         </div>
                     </div>
 
@@ -837,10 +789,7 @@
             <i data-lucide="receipt"></i>
             <span>Expenses</span>
         </a>
-        <a href="#" class="mobile-nav-item" data-view="projects">
-            <i data-lucide="briefcase"></i>
-            <span>Projects</span>
-        </a>
+
 
         <a href="#" class="mobile-nav-item" data-view="reports">
             <i data-lucide="pie-chart"></i>
