@@ -255,7 +255,8 @@ let activeFilters = {
     category: 'all',
     project: 'all',
     paymentMethod: 'all',
-    status: 'all'
+    status: 'all',
+    bankAccount: 'all'
 };
 let voiceRecordingState = {
     isRecording: false,
@@ -716,6 +717,9 @@ function getFilteredExpenses() {
     }
     if (activeFilters.status !== 'all') {
         filtered = filtered.filter(e => e.status === activeFilters.status);
+    }
+    if (activeFilters.bankAccount !== 'all') {
+        filtered = filtered.filter(e => e.bankAccount === activeFilters.bankAccount);
     }
 
     // 4. Search Filter
@@ -2292,7 +2296,8 @@ function setupEventListeners() {
         category: 'filter-category',
         project: 'filter-project',
         paymentMethod: 'filter-payment',
-        status: 'filter-status'
+        status: 'filter-status',
+        bankAccount: 'filter-bank-account'
     };
 
     Object.entries(filterSelectors).forEach(([key, id]) => {
